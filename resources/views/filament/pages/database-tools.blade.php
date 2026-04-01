@@ -16,8 +16,8 @@
                 <tbody>
                     @foreach ($this->getDbStats() as $row)
                         <tr class="border-b border-gray-100 dark:border-white/5">
-                            <td class="py-1.5 pr-4 font-mono text-gray-800 dark:text-gray-200">{{ $row->table_name }}</td>
-                            <td class="py-1.5 pr-4 text-right text-gray-600 dark:text-gray-400">{{ number_format($row->table_rows ?? 0) }}</td>
+                            <td class="py-1.5 pr-4 font-mono text-gray-800 dark:text-gray-200">{{ $row->name }}</td>
+                            <td class="py-1.5 pr-4 text-right text-gray-600 dark:text-gray-400">{{ number_format($row->rows ?? 0) }}</td>
                             <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
                                 {{ $row->size_bytes >= 1048576
                                     ? round($row->size_bytes / 1048576, 2) . ' MB'

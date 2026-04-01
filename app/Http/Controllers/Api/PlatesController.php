@@ -11,31 +11,56 @@ use Illuminate\Support\Facades\DB;
 class PlatesController extends Controller
 {
     /**
-     * List plates, optionally filtered by state/country.
+     * List plates with optional filters.
      * GET /api/v1/plates
+     *
+     * Query params:
+     *   series_id, region_id, country_code, category_id, vehicle_class, search, per_page, page
      */
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'state'    => ['nullable', 'string', 'max:10'],
-            'country'  => ['nullable', 'string', 'max:10'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page'     => ['nullable', 'integer', 'min:1'],
+            'series_id'    => ['nullable', 'integer'],
+            'region_id'    => ['nullable', 'integer'],
+            'country_code' => ['nullable', 'string', 'max:10'],
+            'category_id'  => ['nullable', 'integer'],
+            'vehicle_class'=> ['nullable', 'string', 'max:50'],
+            'search'       => ['nullable', 'string', 'max:100'],
+            'per_page'     => ['nullable', 'integer', 'min:1', 'max:100'],
+            'page'         => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $query = Plate::where('is_active', true)
-            ->select('id', 'state_code', 'country_code', 'plate_type', 'name', 'slug', 'image_filename', 'year_introduced');
+        $query = Plate::with(['series:id,name,country_code,header,footer,background,region_id',
+                              'series.region:id,name,code,country_code',
+                              'category:id,name'])
+            ->where('plates.is_active', true);
 
-        if ($request->filled('state')) {
-            $query->where('state_code', strtoupper($request->query('state')));
+        if ($request->filled('series_id')) {
+            $query->where('series_id', $request->integer('series_id'));
         }
 
-        if ($request->filled('country')) {
-            $query->where('country_code', strtoupper($request->query('country')));
+        if ($request->filled('region_id')) {
+            $query->whereHas('series', fn ($q) => $q->where('region_id', $request->integer('region_id')));
+        }
+
+        if ($request->filled('country_code')) {
+            $query->whereHas('series', fn ($q) => $q->where('country_code', strtoupper($request->query('country_code'))));
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->integer('category_id'));
+        }
+
+        if ($request->filled('vehicle_class')) {
+            $query->where('vehicle_class', $request->query('vehicle_class'));
+        }
+
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->query('search') . '%');
         }
 
         $perPage = (int) $request->query('per_page', 50);
-        $plates  = $query->orderBy('state_code')->orderBy('name')->paginate($perPage);
+        $plates  = $query->orderBy('name')->paginate($perPage);
 
         return response()->json($plates);
     }
@@ -46,7 +71,7 @@ class PlatesController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $plate = Plate::findOrFail($id);
+        $plate = Plate::with(['series.region', 'category'])->findOrFail($id);
 
         return response()->json($plate);
     }

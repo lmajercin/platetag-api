@@ -29,3 +29,4 @@ class Series extends Model
     {
         return $this->hasMany(Plate::class);
     }
+}

@@ -33,3 +33,6 @@ class Plate extends Model
     {
         return $this->belongsToMany(User::class, 'user_discovered_plates')
             ->withPivot('discovered_at', 'notes')
+            ->withTimestamps();
+    }
+}

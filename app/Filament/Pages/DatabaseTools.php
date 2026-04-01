@@ -184,7 +184,7 @@ class DatabaseTools extends Page
     {
         try {
             $rows = \DB::select("
-                SELECT table_name, table_rows, data_length + index_length AS size_bytes
+                SELECT table_name AS name, table_rows AS rows, (data_length + index_length) AS size_bytes
                 FROM information_schema.tables
                 WHERE table_schema = DATABASE()
                 ORDER BY table_name
