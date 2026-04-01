@@ -12,14 +12,16 @@ Route::prefix('v1')->group(function () {
         Route::post('login',    [AuthController::class, 'login']);
     });
 
+    // Public plate browsing
+    Route::get('plates',      [PlatesController::class, 'index']);
+    Route::get('plates/{id}', [PlatesController::class, 'show']);
+
     // ── Authenticated routes ──────────────────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me',      [AuthController::class, 'me']);
 
-        Route::get('plates',                  [PlatesController::class, 'index']);
-        Route::get('plates/{id}',             [PlatesController::class, 'show']);
-        Route::post('plates/{id}/discover',   [PlatesController::class, 'discover']);
+        Route::post('plates/{id}/discover', [PlatesController::class, 'discover']);
     });
 });
