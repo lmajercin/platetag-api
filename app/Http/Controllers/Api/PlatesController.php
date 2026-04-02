@@ -62,7 +62,17 @@ class PlatesController extends Controller
         $perPage = (int) $request->query('per_page', 50);
         $plates  = $query->orderBy('name')->paginate($perPage);
 
-        return response()->json($plates);
+        return response()->json([
+            'data' => $plates->items(),
+            'meta' => [
+                'current_page' => $plates->currentPage(),
+                'last_page'    => $plates->lastPage(),
+                'per_page'     => $plates->perPage(),
+                'total'        => $plates->total(),
+                'from'         => $plates->firstItem(),
+                'to'           => $plates->lastItem(),
+            ],
+        ]);
     }
 
     /**
