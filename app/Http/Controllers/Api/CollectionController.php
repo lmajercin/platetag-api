@@ -46,6 +46,41 @@ class CollectionController extends Controller
             ->orderByDesc('udp.discovered_at')
             ->paginate(50);
 
-        return response()->json($discoveries);
+        return response()->json([
+            'data' => $discoveries->items(),
+            'meta' => [
+                'current_page' => $discoveries->currentPage(),
+                'last_page'    => $discoveries->lastPage(),
+                'per_page'     => $discoveries->perPage(),
+                'total'        => $discoveries->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Return collection statistics for the authenticated user.
+     * GET /api/v1/auth/stats
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $row = DB::table('user_discovered_plates as udp')
+            ->join('plates', 'plates.id', '=', 'udp.plate_id')
+            ->join('series', 'series.id', '=', 'plates.series_id')
+            ->leftJoin('regions', 'regions.id', '=', 'series.region_id')
+            ->where('udp.user_id', $user->id)
+            ->selectRaw('
+                COUNT(DISTINCT udp.plate_id)   AS total_plates,
+                COUNT(DISTINCT regions.id)     AS total_regions,
+                COUNT(DISTINCT series.country_code) AS total_countries
+            ')
+            ->first();
+
+        return response()->json([
+            'total_plates'    => (int) ($row->total_plates    ?? 0),
+            'total_regions'   => (int) ($row->total_regions   ?? 0),
+            'total_countries' => (int) ($row->total_countries ?? 0),
+        ]);
     }
 }

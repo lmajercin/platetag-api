@@ -23,7 +23,7 @@ Route::prefix('v1')->group(function () {
     Route::get('series',      [BrowseController::class, 'series']);
     Route::get('categories',  [BrowseController::class, 'categories']);
 
-    // Community submissions — allowed unauthenticated (user_id nullable)
+    // Community submissions ï¿½ allowed unauthenticated (user_id nullable)
     Route::post('plate-requests', [PlateRequestController::class, 'store']);
     Route::post('bug-reports',    [BugReportController::class, 'store']);
 
@@ -32,6 +32,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout',          [AuthController::class, 'logout']);
         Route::get('auth/me',               [AuthController::class, 'me']);
         Route::get('auth/collection',       [CollectionController::class, 'index']);
+        Route::get('auth/stats',            [CollectionController::class, 'stats']);
         Route::post('plates/{id}/discover', [PlatesController::class, 'discover']);
     });
 });
