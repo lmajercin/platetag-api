@@ -37,9 +37,9 @@ class BrowseController extends Controller
             $query->where('country_code', strtoupper($request->query('country_code')));
         }
 
-        $items = $query->orderBy('name')->get()->map(function (Series $series) use ($request) {
-            $series->image_url = $this->publicStorageUrl($request, 'series', $series->image_filename);
-            return $series;
+        $items = $query->orderBy('name')->get()->map(function (Region $region) use ($request) {
+            $region->image_url = $this->publicStorageUrl($request, 'regions', $region->image_filename ?? null);
+            return $region;
         });
 
         return response()->json($items);
