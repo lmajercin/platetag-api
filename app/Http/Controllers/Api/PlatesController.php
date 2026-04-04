@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\DB;
 
 class PlatesController extends Controller
 {
+    private function publicStorageUrl(Request $request, string $folder, ?string $filename): ?string
+    {
+        if (!$filename) {
+            return null;
+        }
+
+        return rtrim($request->root(), '/') . '/storage/' . $folder . '/' . ltrim($filename, '/');
+    }
+
     /**
      * List plates with optional filters.
      * GET /api/v1/plates
@@ -61,9 +70,18 @@ class PlatesController extends Controller
 
         $perPage = (int) $request->query('per_page', 50);
         $plates  = $query->orderBy('name')->paginate($perPage);
+        $items = collect($plates->items())->map(function (Plate $plate) use ($request) {
+            $plate->image_url = $this->publicStorageUrl($request, 'plates', $plate->image_filename);
+
+            if ($plate->series) {
+                $plate->series->image_url = $this->publicStorageUrl($request, 'series', $plate->series->image_filename);
+            }
+
+            return $plate;
+        })->values();
 
         return response()->json([
-            'data' => $plates->items(),
+            'data' => $items,
             'meta' => [
                 'current_page' => $plates->currentPage(),
                 'last_page'    => $plates->lastPage(),
@@ -82,6 +100,13 @@ class PlatesController extends Controller
     public function show(int $id): JsonResponse
     {
         $plate = Plate::with(['series.region', 'category'])->findOrFail($id);
+        $request = request();
+
+        $plate->image_url = $this->publicStorageUrl($request, 'plates', $plate->image_filename);
+
+        if ($plate->series) {
+            $plate->series->image_url = $this->publicStorageUrl($request, 'series', $plate->series->image_filename);
+        }
 
         return response()->json($plate);
     }

@@ -11,6 +11,15 @@ use Illuminate\Http\Request;
 
 class BrowseController extends Controller
 {
+    private function publicStorageUrl(Request $request, string $folder, ?string $filename): ?string
+    {
+        if (!$filename) {
+            return null;
+        }
+
+        return rtrim($request->root(), '/') . '/storage/' . $folder . '/' . ltrim($filename, '/');
+    }
+
     /**
      * List active regions.
      * GET /api/v1/regions
@@ -28,7 +37,12 @@ class BrowseController extends Controller
             $query->where('country_code', strtoupper($request->query('country_code')));
         }
 
-        return response()->json($query->orderBy('name')->get());
+        $items = $query->orderBy('name')->get()->map(function (Series $series) use ($request) {
+            $series->image_url = $this->publicStorageUrl($request, 'series', $series->image_filename);
+            return $series;
+        });
+
+        return response()->json($items);
     }
 
     /**

@@ -6,9 +6,19 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CollectionController extends Controller
 {
+    private function publicStorageUrl(Request $request, string $folder, ?string $filename): ?string
+    {
+        if (!$filename) {
+            return null;
+        }
+
+        return rtrim($request->root(), '/') . '/storage/' . $folder . '/' . ltrim($filename, '/');
+    }
+
     /**
      * Return the authenticated user's discovered plates.
      * GET /api/v1/auth/collection
@@ -46,8 +56,14 @@ class CollectionController extends Controller
             ->orderByDesc('udp.discovered_at')
             ->paginate(50);
 
+        $items = collect($discoveries->items())->map(function ($item) use ($request) {
+            $item->image_url = $this->publicStorageUrl($request, 'plates', $item->image_filename);
+
+            return $item;
+        })->values();
+
         return response()->json([
-            'data' => $discoveries->items(),
+            'data' => $items,
             'meta' => [
                 'current_page' => $discoveries->currentPage(),
                 'last_page'    => $discoveries->lastPage(),
