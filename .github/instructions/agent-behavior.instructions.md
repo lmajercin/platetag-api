@@ -373,3 +373,39 @@ Apple accepted the Build 65 binary on the first attempt but EAS reported failure
 2. Description of what each change does
 3. New endpoints added or removed
 4. Whether `auth:sanctum` and rate limiting are in place for each mutating endpoint
+
+---
+
+## Threshold-Dependent Feature Rules (enacted 2026-06-14 after Build 68/69 nudge failure)
+
+Any feature that triggers UI or behavior at a numeric threshold (plate count, sighting count, score, etc.) requires a mandatory pre-implementation data-source declaration.
+
+### Rule 1 — Declare the data source before writing threshold logic
+
+Before writing any code that compares a count to a threshold, explicitly state:
+- **What data source provides the count** (e.g., local SQLite, remote API response, cached module-level value, AuthContext user field)
+- **When that source is authoritative** (e.g., "local SQLite is correct after the user discovers a plate on this device")
+- **When that source is wrong** (e.g., "local SQLite undercounts if the account was created on another device, admin-reset on the server, or restored from a backup")
+
+If the source is wrong in any realistic scenario for this feature, choose a different source or confirm with Larry before proceeding.
+
+### Rule 2 — Test scenario pre-flight before every preview build
+
+Before requesting a device test, describe exactly how to set up the test state and flag any conditions that would cause a false failure. Example format:
+
+> "Test account needs 35+ plates in **[specific data source]**. If the account was server-reset or set via admin, the nudge will not appear because local SQLite will be empty. Verify by [specific check]."
+
+If the test setup is non-trivial, provide step-by-step instructions rather than assuming the tester will figure it out.
+
+### Rule 3 — Never borrow a data source from nearby code without verifying it fits
+
+Reusing a data source from adjacent code (e.g., `getDiscoveredPlateIds()` used in `atCap` logic) is not a justification for using it in new logic. For every new use:
+1. Read the function definition and confirm what it actually queries
+2. Confirm it returns authoritative data for the specific new scenario
+3. If there is any doubt, state the doubt explicitly before implementing
+
+### Why these rules exist (2026-06-14 incident)
+
+Build 68 shipped a 35-plate upgrade nudge using `getDiscoveredPlateIds()` — local SQLite only. The test account had plates admin-reset on the server; local SQLite had a different count. The nudge never appeared. A second preview build was required. Each missed build costs ~$17.50 (EAS + AI charges). This failure was fully preventable by reading the data source definition before use.
+
+**The pattern to avoid:** borrowing a data source from nearby code without verifying it is authoritative for the new use case.
