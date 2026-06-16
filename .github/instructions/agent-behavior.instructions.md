@@ -41,6 +41,24 @@ See `platetag-docs/AGENTS.md` Pre-Work Checklist section for full details.
 
 ---
 
+## Pre-Write File Search — Mandatory (enacted 2026-06-15)
+
+Before creating any new file — regardless of format, extension, or location — the agent MUST:
+
+1. **Search all active repos** for an existing file with the same name or purpose using `file_search`.
+2. **If a match is found:** edit that file. Do not create a second copy under any circumstances.
+3. **If no match is found:** verify the intended repo and path against the Content Ownership Map in `platetag-docs/STATUS_UPDATE_RULES.md` before writing.
+   - `platetag-docs/` is governance-only. App-specific documents (test plans, status files, guides) belong in the relevant project's `docs/` folder.
+
+### Why this rule exists (2026-06-15 — BETA_TESTING.md duplication incident)
+
+- `platetag-app/docs/BETA_TESTING.md` existed as the authoritative beta testing plan managed by `@Beta`.
+- An agent created `platetag-docs/BETA_TESTING.md` without searching first.
+- Two diverging files with the same name now existed across two repos. The `platetag-docs/` copy had to be deleted and merged back into the correct location.
+- **A single `file_search` call before writing would have prevented this entirely.**
+
+---
+
 ## Step-Gated Execution — Mandatory (enacted 2026-06-05 after 10-hour governance session)
 
 **Larry is a non-technical vibe coder. He cannot find or fix broken code. If an agent makes a mistake, the next agent must clean it up — but the goal is to never create the mess in the first place.**
