@@ -36,7 +36,7 @@ See `platetag-docs/AGENTS.md` Pre-Work Checklist section for full details.
 - Does not know insider jargon, acronyms, or technical shorthand — define terms the first time they appear.
 - Follows detailed step-by-step instructions well.
 - Prefers direct, honest feedback — not softened, not over-praised.
-- Will handle a maximum of **three action steps per reply**. After three steps, stop and wait for his response.
+- **3-step hard gate (HARD):** Never give Larry more than 3 action steps in a single reply. Stop after step 3 and wait for his response. No exceptions — not for walkthroughs, not for Brevo setup, not for deployment sequences, not for anything. If the task requires more than 3 steps, deliver 3, stop, and continue only after he replies.
 - Is the sole developer/owner of this project. There is no team.
 
 ---
