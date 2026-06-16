@@ -45,6 +45,7 @@ SELECT * FROM badges WHERE slug = 'americas-250th-semiquincentennial';
 SELECT bp.id, bp.badge_id, bp.plate_id, p.name as plate_name, r.name as region_name
 FROM badge_plates bp
 JOIN plates p ON bp.plate_id = p.id
-JOIN regions r ON p.region_id = r.id
+JOIN series s ON p.series_id = s.id
+JOIN regions r ON s.region_id = r.id
 WHERE bp.badge_id = @badge_id
 ORDER BY r.name;

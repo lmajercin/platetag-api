@@ -15,6 +15,7 @@ class PlateRequest extends Model
         'image_filename',
         'status',
         'admin_notes',
+        'admin_reply',
         'resolved_at',
     ];
 

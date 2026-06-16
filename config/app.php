@@ -107,6 +107,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Founding Member Cutoff
+    |--------------------------------------------------------------------------
+    |
+    | Users who register on or before this UTC datetime receive permanent free
+    | full access (founding member status). Must be a full ISO-8601 UTC string.
+    | Read via config('app.founding_member_cutoff') — never via env() directly.
+    |
+    | Example: '2026-08-15T23:59:59Z'
+    |
+    */
+
+    'founding_member_cutoff' => env('FOUNDING_MEMBER_CUTOFF', '2026-08-15T23:59:59Z'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Free Tier Plate Cap
+    |--------------------------------------------------------------------------
+    |
+    | Maximum number of unique plate first-discoveries allowed for free users.
+    | Changing this value takes effect immediately with no migration required.
+    |
+    */
+
+    'free_plate_cap' => (int) env('FREE_PLATE_CAP', 50),
+
+    /*
+    |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
     |

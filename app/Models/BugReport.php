@@ -15,6 +15,7 @@ class BugReport extends Model
         'category',
         'status',
         'admin_notes',
+        'admin_reply',
         'app_version',
         'resolved_at',
     ];

@@ -47,7 +47,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Enforce a minimum of 30 days (43200 minutes) per product policy.
+    'expiration' => max((int) env('SANCTUM_TOKEN_EXPIRATION', 43200), 43200),
 
     /*
     |--------------------------------------------------------------------------
@@ -62,7 +63,7 @@ return [
     |
     */
 
-    'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
+    'token_prefix' => env('SANCTUM_TOKEN_PREFIX', 'platetag_'),
 
     /*
     |--------------------------------------------------------------------------

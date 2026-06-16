@@ -13,7 +13,8 @@ class EditPlate extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->successRedirectUrl($this->getResource()::getUrl('index')),
         ];
     }
 }

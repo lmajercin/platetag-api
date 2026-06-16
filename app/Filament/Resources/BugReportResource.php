@@ -63,8 +63,13 @@ class BugReportResource extends Resource
                     ->default('open')->required(),
                 Forms\Components\DateTimePicker::make('resolved_at')
                     ->label('Resolved At')->nullable(),
-                Forms\Components\Textarea::make('admin_notes')
+                Forms\Components\Textarea::make('admin_reply')
+                    ->label('Reply to User (visible in app)')
+                    ->helperText('This message is shown to the user in their My Submissions screen.')
                     ->columnSpanFull()->rows(3),
+                Forms\Components\Textarea::make('admin_notes')
+                    ->label('Internal Notes (admin only)')
+                    ->columnSpanFull()->rows(2),
             ])->columns(2),
         ]);
     }

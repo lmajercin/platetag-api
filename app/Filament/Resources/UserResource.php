@@ -32,7 +32,7 @@ class UserResource extends Resource
             Forms\Components\Section::make('Password')->schema([
                 Forms\Components\TextInput::make('password')
                     ->password()->revealable()
-                    ->dehydrateStateUsing(fn ($state) => filled($state) ? bcrypt($state) : null)
+                    ->dehydrateStateUsing(fn ($state) => filled($state) ? $state : null)
                     ->dehydrated(fn ($state) => filled($state))
                     ->required(fn (string $operation) => $operation === 'create')
                     ->maxLength(191)

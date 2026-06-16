@@ -53,8 +53,13 @@ class PlateRequestResource extends Resource
                     ->default('pending')->required(),
                 Forms\Components\DateTimePicker::make('resolved_at')
                     ->label('Resolved At')->nullable(),
-                Forms\Components\Textarea::make('admin_notes')
+                Forms\Components\Textarea::make('admin_reply')
+                    ->label('Reply to User (visible in app)')
+                    ->helperText('Shown to the user in their My Submissions screen. Acknowledge, ask for detail, or confirm it was added.')
                     ->columnSpanFull()->rows(3),
+                Forms\Components\Textarea::make('admin_notes')
+                    ->label('Internal Notes (admin only)')
+                    ->columnSpanFull()->rows(2),
             ])->columns(2),
         ]);
     }

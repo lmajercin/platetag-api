@@ -77,12 +77,16 @@ class DatabaseTools extends Page
         if (! is_dir($dir)) { mkdir($dir, 0755, true); }
 
         $filename = $dir . DIRECTORY_SEPARATOR . $db . '_' . date('Ymd_His') . '.sql';
-        $dump     = 'C:\\wamp64\\bin\\mysql\\mysql9.1.0\\bin\\mysqldump.exe';
+        $dump     = env('MYSQLDUMP_PATH', 'mysqldump');
 
-        $cmd  = "\"{$dump}\" --host={$host} --port={$port} --user={$user}";
-        $cmd .= " --password=" . escapeshellarg($password);
-        $cmd .= " --single-transaction --routines --triggers {$db}";
-        $cmd .= " > " . escapeshellarg($filename) . " 2>&1";
+        $cmd  = escapeshellarg($dump);
+        $cmd .= ' --host=' . escapeshellarg((string) $host);
+        $cmd .= ' --port=' . escapeshellarg((string) $port);
+        $cmd .= ' --user=' . escapeshellarg((string) $user);
+        $cmd .= ' --password=' . escapeshellarg((string) $password);
+        $cmd .= ' --single-transaction --routines --triggers';
+        $cmd .= ' ' . escapeshellarg((string) $db);
+        $cmd .= ' > ' . escapeshellarg($filename) . ' 2>&1';
 
         exec($cmd, $output, $exitCode);
 
@@ -103,10 +107,13 @@ class DatabaseTools extends Page
         $host     = config('database.connections.mysql.host');
         $port     = config('database.connections.mysql.port', 3306);
 
-        $mysql = 'C:\\wamp64\\bin\\mysql\\mysql9.1.0\\bin\\mysql.exe';
-        $cmd   = "\"{$mysql}\" --host={$host} --port={$port} --user={$user}";
-        $cmd  .= " --password=" . escapeshellarg($password);
-        $cmd  .= " {$db} -e \"SHOW TABLES\" 2>&1";
+        $mysql = env('MYSQL_PATH', 'mysql');
+        $cmd   = escapeshellarg($mysql);
+        $cmd  .= ' --host=' . escapeshellarg((string) $host);
+        $cmd  .= ' --port=' . escapeshellarg((string) $port);
+        $cmd  .= ' --user=' . escapeshellarg((string) $user);
+        $cmd  .= ' --password=' . escapeshellarg((string) $password);
+        $cmd  .= ' ' . escapeshellarg((string) $db) . ' -e "SHOW TABLES" 2>&1';
 
         exec($cmd, $tables, $exitCode);
 
@@ -119,9 +126,12 @@ class DatabaseTools extends Page
         $tables = array_slice($tables, 1);
         $tableList = implode(', ', $tables);
 
-        $optCmd  = "\"{$mysql}\" --host={$host} --port={$port} --user={$user}";
-        $optCmd .= " --password=" . escapeshellarg($password);
-        $optCmd .= " {$db} -e \"OPTIMIZE TABLE {$tableList}\" 2>&1";
+        $optCmd  = escapeshellarg($mysql);
+        $optCmd .= ' --host=' . escapeshellarg((string) $host);
+        $optCmd .= ' --port=' . escapeshellarg((string) $port);
+        $optCmd .= ' --user=' . escapeshellarg((string) $user);
+        $optCmd .= ' --password=' . escapeshellarg((string) $password);
+        $optCmd .= ' ' . escapeshellarg((string) $db) . ' -e "OPTIMIZE TABLE ' . $tableList . '" 2>&1';
 
         exec($optCmd, $result, $exitCode2);
 

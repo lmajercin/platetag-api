@@ -13,13 +13,16 @@ class Plate extends Model
 
     protected $fillable = [
         'name', 'slug', 'series_id', 'category_id', 'vehicle_class',
-        'header_override', 'footer_override', 'detail', 'serial_format',
+        'header_override', 'footer_override', 'detail', 'tags', 'serial_format',
         'image_filename', 'updates_complete', 'is_active',
+        'is_primary', 'is_secondary',
     ];
 
     protected $casts = [
         'is_active'        => 'boolean',
         'updates_complete' => 'boolean',
+        'is_primary'       => 'boolean',
+        'is_secondary'     => 'boolean',
     ];
 
     public function series(): BelongsTo
@@ -45,6 +48,7 @@ class Plate extends Model
             return null;
         }
 
-        return Storage::disk('public')->url('plates/' . $this->image_filename);
+        $fn = preg_replace('#^plates/#', '', $this->image_filename);
+        return Storage::disk('public')->url('plates/' . $fn);
     }
 }

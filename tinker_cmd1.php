@@ -1,0 +1,1 @@
+﻿DB::table('categories')->orderBy('id')->get(['id','name','slug'])->each(function($c){ echo $c->id . ' | ' . $c->name . ' | ' . $c->slug . PHP_EOL; });

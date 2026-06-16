@@ -27,6 +27,7 @@ class CategorySeeder extends Seeder
             ['name' => 'Agricultural',                'description' => 'Farming and ranching plates (distinct from Specialty Equipment vehicle class)'],
             ['name' => 'Fraternal / Civic',           'description' => 'Masons, Eagles, Rotary, VFW, Elks, and similar organizations'],
             ['name' => 'Historical / Commemorative',  'description' => 'Anniversary, historical event, and commemorative plates'],
+            ['name' => 'Radio / Amateur Radio',       'description' => 'Citizens Band (CB) and Amateur (HAM) radio operator plates'],
             ['name' => 'Other / Specialty',           'description' => 'Catch-all for plates that do not fit another category'],
         ];
 

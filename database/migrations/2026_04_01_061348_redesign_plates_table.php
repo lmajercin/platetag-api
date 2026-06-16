@@ -10,7 +10,9 @@ return new class extends Migration
     public function up(): void
     {
         // Clear seed-only data — schema is incompatible with existing rows
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
         DB::table('plates')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
         Schema::table('plates', function (Blueprint $table) {
             // Drop FK + columns that now live on Series or are redundant

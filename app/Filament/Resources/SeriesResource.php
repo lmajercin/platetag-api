@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 
 class SeriesResource extends Resource
 {
@@ -101,6 +102,26 @@ class SeriesResource extends Resource
     }
 
     public static function getRelations(): array { return []; }
+
+    public static function canEdit(Model $record): bool
+    {
+        return app()->environment('production') ? false : parent::canEdit($record);
+    }
+
+    public static function canCreate(): bool
+    {
+        return app()->environment('production') ? false : parent::canCreate();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return app()->environment('production') ? false : parent::canDelete($record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return app()->environment('production') ? false : parent::canDeleteAny();
+    }
 
     public static function getPages(): array
     {
