@@ -18,7 +18,10 @@ applyTo: "**"
 - Production DB: plates=10,170 | series=256 | regions=99 | categories=16
 - Last synced: 2026-06-13
 - Mobile app: v1.2.0 — iOS build 69 / Android build 69 — SUBMITTED 2026-06-16. iOS EAS: `6c07cb77`, Android EAS: `175e8188`. Fixes: cap banner tap zone, stale counter, 30s network timeout. Next build = 70 (both platforms).
-- **Build 68 registration fixed (2026-06-16):** Missing `discovery_sessions.ended_at` column migration deployed. Email timeout handled via try-catch in AuthController. Brevo SMTP configured. All flows verified working (register → email verify → login → forgot password → reset password). Ready for beta testers.
+- **Build 68 registration fixed (2026-06-16):** Two production fixes deployed:
+  1. **Migration:** `discovery_sessions.ended_at` column was missing from production DB. Migration deployed via A2 cPanel Terminal. Without this column, session creation failed during registration.
+  2. **`.env` SMTP typo:** Single character typo in production `.env` — letter `i` used instead of lowercase `l` in a Brevo SMTP field (likely `MAIL_FROM_ADDRESS` or `MAIL_HOST`). Silently broke all outbound email (verification + password reset). Fixed by direct `.env` edit on A2 Hosting. No code deploy required.
+  - All auth flows verified working post-fix: register → email verify → login → forgot password → reset password.
 - **Build 65/66 note:** Superseded by Build 67.
 - **Web app: ✅ V1 COMPLETE at https://platetag.app (2026-06-04).** PWA + cookie auth live. DNS cutover done.
 - **Web app: ✅ LIVE at https://platetag.app (2026-06-03). ~99% V1 complete. DNS cutover done. `APP_URL` on production `.env` = `https://api.platetag.app`. Delete Discovery, Pin Correction, ToS/Privacy, OG image, Search Console all done. PWA manifest is the only remaining V1 item.**
