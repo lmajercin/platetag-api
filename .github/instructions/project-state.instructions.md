@@ -1,7 +1,7 @@
 ---
 name: "PlateTag API — Project State & Conventions"
 description: "Current project state, production server facts, migration conventions, sync script, and key API routes. Read this when starting any backend feature or deployment."
-applyTo: "**"
+applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 ---
 
 # PlateTag API — Project State & Conventions
@@ -13,15 +13,11 @@ applyTo: "**"
 - `plates_react` is a retired legacy project. **OFF LIMITS.** Do not read from, write to, or reference it.
 - `plates_react/tools/prod_sync.py` — **BANNED.** Wiped production database on May 9, 2026.
 
-## Current State (as of 2026-06-16)
+## Current State (as of 2026-05-28)
 
-- Production DB: plates=10,170 | series=256 | regions=99 | categories=16
-- Last synced: 2026-06-13
-- Mobile app: v1.2.0 — iOS build 69 / Android build 69 — SUBMITTED 2026-06-16. iOS EAS: `6c07cb77`, Android EAS: `175e8188`. Fixes: cap banner tap zone, stale counter, 30s network timeout. Next build = 70 (both platforms).
-- **Build 68 registration fixed (2026-06-16):** Two production fixes deployed:
-  1. **Migration:** `discovery_sessions.ended_at` column was missing from production DB. Migration deployed via A2 cPanel Terminal. Without this column, session creation failed during registration.
-  2. **`.env` SMTP typo:** Single character typo in production `.env` — letter `i` used instead of lowercase `l` in a Brevo SMTP field (likely `MAIL_FROM_ADDRESS` or `MAIL_HOST`). Silently broke all outbound email (verification + password reset). Fixed by direct `.env` edit on A2 Hosting. No code deploy required.
-  - All auth flows verified working post-fix: register → email verify → login → forgot password → reset password.
+- Production DB: plates=10,120 | series=255 | regions=99 | categories=16
+- Last synced: 2026-06-09
+- Mobile app: v1.2.0 — iOS build 70 / Android build 70 — SUBMITTED 2026-06-17. iOS in App Store Review (submitted 2026-06-19, manual release). Next build = 71 (both platforms).
 - **Build 65/66 note:** Superseded by Build 67.
 - **Web app: ✅ V1 COMPLETE at https://platetag.app (2026-06-04).** PWA + cookie auth live. DNS cutover done.
 - **Web app: ✅ LIVE at https://platetag.app (2026-06-03). ~99% V1 complete. DNS cutover done. `APP_URL` on production `.env` = `https://api.platetag.app`. Delete Discovery, Pin Correction, ToS/Privacy, OG image, Search Console all done. PWA manifest is the only remaining V1 item.**

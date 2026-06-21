@@ -34,7 +34,12 @@ class AuthController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        $user->sendEmailVerificationNotification();
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Exception $e) {
+            // Email delivery failed, but don't block registration
+            \Log::warning("Email verification failed for user {$user->id}: {$e->getMessage()}");
+        }
 
         // Grant founding member status if registering within the founding window.
         // Done at registration only — not repeated on every login.

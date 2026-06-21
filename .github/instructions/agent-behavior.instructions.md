@@ -1,7 +1,7 @@
 ---
 name: "Agent Behavior & Accountability"
 description: "Core communication and accountability rules that apply to every agent and the default coding agent in the PlateTag project. Governs how agents handle errors, bad input, workflow mistakes, and user communication."
-applyTo: "**"
+applyTo: ".github/instructions/agent-behavior.instructions.md"
 ---
 
 # Agent Behavior & Accountability — PlateTag Project
@@ -262,6 +262,26 @@ When a gate is waived by Larry, record this in the `WEB_STATUS.md` session entry
 - **2026-06-13:** Country dropdown + MX region hide — user-facing UI shipped with no @Design review. Gate was in `AGENTS.md` but was never consulted for web work.
 - **2026-06-14:** Breadcrumb nav — @Design gate was correctly flagged but was flagged at push time, after code was already written. Gate must fire before coding, not before pushing.
 - The rule existed in `AGENTS.md` for mobile. It was silently assumed not to apply to web. That assumption was wrong.
+
+---
+
+## No Deferring Known Breakage (HARD — enacted 2026-06-19)
+
+**If something is broken and we are aware of it, it must be fixed before the next deploy. It is never acceptable to defer a known bug to "post-launch" or "backlog" when the app is not yet publicly open.**
+
+### The rule
+
+1. **Known broken = fix now.** If an agent identifies something broken during any task, it stops and fixes it before moving on — or explicitly flags it to Larry with a concrete fix plan and gets approval to defer.
+2. **"Post-launch backlog" is for features, not breakage.** Adding a new feature post-launch is acceptable. Shipping with a known broken flow and waiting for paying customers to report it is not.
+3. **Security improvements that break production are regressions, not improvements.** A security change that renders the app unusable has a net negative security impact. Revert first, implement correctly second.
+4. **Never move a broken item to backlog without Larry's explicit approval.** State: what is broken, what the impact is, what the fix requires, and ask "fix now or defer?" Do not silently add it to a backlog list.
+
+### Why this rule exists (2026-06-19 incident)
+
+- Commit `9ac09f5` removed `'unsafe-inline'` from CSP `script-src` and `style-src` without a working nonce implementation.
+- This broke RSC hydration for every page on the web app — infinite spinner for all users in all browsers.
+- The nonce-based CSP was already on the **post-launch backlog** for good reason. An agent moved it forward prematurely.
+- **A working app with `'unsafe-inline'` is more secure than a broken app with a strict CSP.**
 
 ---
 

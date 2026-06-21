@@ -67,78 +67,71 @@ class DatabaseTools extends Page
 
     public function backupDatabase(): void
     {
-        $db       = config('database.connections.mysql.database');
-        $user     = config('database.connections.mysql.username');
-        $password = config('database.connections.mysql.password');
-        $host     = config('database.connections.mysql.host');
-        $port     = config('database.connections.mysql.port', 3306);
-
-        $dir      = storage_path('app/backups');
+        $db  = config('database.connections.mysql.database');
+        $dir = storage_path('app/backups');
         if (! is_dir($dir)) { mkdir($dir, 0755, true); }
 
         $filename = $dir . DIRECTORY_SEPARATOR . $db . '_' . date('Ymd_His') . '.sql';
-        $dump     = env('MYSQLDUMP_PATH', 'mysqldump');
 
-        $cmd  = escapeshellarg($dump);
-        $cmd .= ' --host=' . escapeshellarg((string) $host);
-        $cmd .= ' --port=' . escapeshellarg((string) $port);
-        $cmd .= ' --user=' . escapeshellarg((string) $user);
-        $cmd .= ' --password=' . escapeshellarg((string) $password);
-        $cmd .= ' --single-transaction --routines --triggers';
-        $cmd .= ' ' . escapeshellarg((string) $db);
-        $cmd .= ' > ' . escapeshellarg($filename) . ' 2>&1';
+        try {
+            $pdo    = \DB::connection()->getPdo();
+            $tables = \DB::select('SHOW TABLES');
+            $names  = array_map(fn ($r) => array_values((array) $r)[0], $tables);
 
-        exec($cmd, $output, $exitCode);
+            $out  = "-- PlateTag backup\n-- " . date('Y-m-d H:i:s') . "\n-- Database: {$db}\n\n";
+            $out .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
 
-        if ($exitCode === 0 && file_exists($filename) && filesize($filename) > 500) {
-            $this->refreshLastBackup();
-            Notification::make()->title('Backup created')->body(basename($filename))->success()->send();
-        } else {
-            $detail = implode("\n", $output);
-            Notification::make()->title('Backup failed')->body($detail ?: 'mysqldump returned exit code ' . $exitCode)->danger()->send();
+            foreach ($names as $table) {
+                $create    = \DB::select("SHOW CREATE TABLE `{$table}`");
+                $createSql = $create[0]->{'Create Table'};
+                $out .= "DROP TABLE IF EXISTS `{$table}`;\n{$createSql};\n\n";
+
+                $rows = \DB::table($table)->get();
+                if ($rows->isNotEmpty()) {
+                    $cols    = array_keys((array) $rows->first());
+                    $colList = implode(', ', array_map(fn ($c) => "`{$c}`", $cols));
+                    foreach ($rows as $row) {
+                        $vals = implode(', ', array_map(
+                            fn ($v) => $v === null ? 'NULL' : $pdo->quote((string) $v),
+                            (array) $row
+                        ));
+                        $out .= "INSERT INTO `{$table}` ({$colList}) VALUES ({$vals});\n";
+                    }
+                    $out .= "\n";
+                }
+            }
+
+            $out .= "SET FOREIGN_KEY_CHECKS=1;\n";
+            file_put_contents($filename, $out);
+
+            if (file_exists($filename) && filesize($filename) > 500) {
+                $this->refreshLastBackup();
+                Notification::make()->title('Backup created')->body(basename($filename))->success()->send();
+            } else {
+                Notification::make()->title('Backup failed')->body('File was not created or is empty.')->danger()->send();
+            }
+        } catch (\Exception $e) {
+            Notification::make()->title('Backup failed')->body($e->getMessage())->danger()->send();
         }
     }
 
     public function optimizeDatabase(): void
     {
-        $db       = config('database.connections.mysql.database');
-        $user     = config('database.connections.mysql.username');
-        $password = config('database.connections.mysql.password');
-        $host     = config('database.connections.mysql.host');
-        $port     = config('database.connections.mysql.port', 3306);
+        try {
+            $tables = \DB::select('SHOW TABLES');
+            if (empty($tables)) {
+                Notification::make()->title('Optimize failed')->body('Could not retrieve table list.')->danger()->send();
+                return;
+            }
 
-        $mysql = env('MYSQL_PATH', 'mysql');
-        $cmd   = escapeshellarg($mysql);
-        $cmd  .= ' --host=' . escapeshellarg((string) $host);
-        $cmd  .= ' --port=' . escapeshellarg((string) $port);
-        $cmd  .= ' --user=' . escapeshellarg((string) $user);
-        $cmd  .= ' --password=' . escapeshellarg((string) $password);
-        $cmd  .= ' ' . escapeshellarg((string) $db) . ' -e "SHOW TABLES" 2>&1';
+            $names     = array_map(fn ($r) => array_values((array) $r)[0], $tables);
+            $tableList = implode(', ', array_map(fn ($t) => "`{$t}`", $names));
 
-        exec($cmd, $tables, $exitCode);
+            \DB::statement('OPTIMIZE TABLE ' . $tableList);
 
-        if ($exitCode !== 0 || empty($tables)) {
-            Notification::make()->title('Optimize failed')->body('Could not retrieve table list.')->danger()->send();
-            return;
-        }
-
-        // First line is the header "Tables_in_..."
-        $tables = array_slice($tables, 1);
-        $tableList = implode(', ', $tables);
-
-        $optCmd  = escapeshellarg($mysql);
-        $optCmd .= ' --host=' . escapeshellarg((string) $host);
-        $optCmd .= ' --port=' . escapeshellarg((string) $port);
-        $optCmd .= ' --user=' . escapeshellarg((string) $user);
-        $optCmd .= ' --password=' . escapeshellarg((string) $password);
-        $optCmd .= ' ' . escapeshellarg((string) $db) . ' -e "OPTIMIZE TABLE ' . $tableList . '" 2>&1';
-
-        exec($optCmd, $result, $exitCode2);
-
-        if ($exitCode2 === 0) {
-            Notification::make()->title('Tables optimized')->body(count($tables) . ' tables processed.')->success()->send();
-        } else {
-            Notification::make()->title('Optimize failed')->body(implode("\n", $result))->danger()->send();
+            Notification::make()->title('Tables optimized')->body(count($names) . ' tables processed.')->success()->send();
+        } catch (\Exception $e) {
+            Notification::make()->title('Optimize failed')->body($e->getMessage())->danger()->send();
         }
     }
 
