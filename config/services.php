@@ -65,6 +65,24 @@ return [
         'product_ids'    => env('REVENUECAT_PRODUCT_IDS', ''),
     ],
 
+    // Sign in with Apple — server-side JWT verification and token revocation.
+    // team_id:    Apple Developer Team ID (top-right on developer.apple.com)
+    // key_id:     Key ID from the .p8 key created in Keys section
+    // bundle_id:  iOS app bundle identifier — used as both client_id and aud claim
+    // private_key_path: absolute path to the downloaded .p8 file (never commit the file or its contents)
+    'apple' => [
+        'team_id'          => env('APPLE_TEAM_ID'),
+        'key_id'           => env('APPLE_KEY_ID'),
+        'bundle_id'        => env('APPLE_BUNDLE_ID', 'app.platetag.mobile'),
+        'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
+    ],
+
+    // OpenAI — used by the local plate tagger (tagger:run artisan command).
+    // NEVER commit the actual key. Local WAMP only — not needed on production.
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+    ],
+
     // Google Play Integrity API — server-side verdict verification.
     // credentials_json: base64-encoded Google service account JSON scoped to playintegrity.googleapis.com.
     // package: Android package name of the app (must match what was registered in Play Console).

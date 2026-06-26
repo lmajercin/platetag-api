@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use Firebase\JWT\JWT;
+use Firebase\JWT\JWK;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,6 +22,7 @@ class SocialTokenVerifier
             return match ($provider) {
                 'google'   => $this->verifyGoogle($token),
                 'facebook' => $this->verifyFacebook($token),
+                'apple'    => $this->verifyApple($token),
                 default    => null,
             };
         } catch (\Exception $e) {
@@ -151,6 +155,59 @@ class SocialTokenVerifier
             // the account email is verified — treat its presence as verified.
             'email_verified' => isset($userData['email']),
             'name'           => $userData['name'] ?? null,
+        ];
+    }
+
+    /**
+     * Verify an Apple identity token (JWT).
+     *
+     * Validates: RS256 signature via Apple JWKS, iss, aud (bundle ID), exp, sub.
+     * Apple JWKS are cached for 1 hour so a momentary Apple outage does not
+     * block sign-ins. Cache is keyed separately from other HTTP calls.
+     *
+     * Returns: id (Apple sub), email (may be null on repeat sign-ins), email_verified, name (always null — passed separately by app).
+     */
+    private function verifyApple(string $identityToken): ?array
+    {
+        $bundleId = config('services.apple.bundle_id');
+
+        // Fetch Apple's public keys with 1-hour cache.
+        $jwks = Cache::remember('apple_jwks', 3600, function () {
+            $response = Http::timeout(10)->get('https://appleid.apple.com/auth/keys');
+            if (! $response->successful()) {
+                throw new \RuntimeException('Failed to fetch Apple JWKS');
+            }
+            return $response->json();
+        });
+
+        // Decode and verify the JWT using firebase/php-jwt
+        $keys    = JWK::parseKeySet($jwks);
+        $decoded = JWT::decode($identityToken, $keys);
+
+        // Validate required claims explicitly
+        if (($decoded->iss ?? '') !== 'https://appleid.apple.com') {
+            Log::error('Apple token iss mismatch', ['iss' => $decoded->iss ?? 'missing']);
+            return null;
+        }
+
+        if (($decoded->aud ?? '') !== $bundleId) {
+            Log::error('Apple token aud mismatch', ['aud' => $decoded->aud ?? 'missing', 'expected' => $bundleId]);
+            return null;
+        }
+
+        if (empty($decoded->sub)) {
+            Log::error('Apple token missing sub claim');
+            return null;
+        }
+
+        // exp is validated automatically by JWT::decode — throws ExpiredException if past
+        return [
+            'id'             => $decoded->sub,
+            // Apple only sends email on first sign-in; subsequent logins return null.
+            // The caller (SocialAuthController) uses the stored value for repeat sign-ins.
+            'email'          => $decoded->email ?? null,
+            'email_verified' => true, // Apple pre-verifies all emails
+            'name'           => null, // name comes from app SDK response, not the JWT
         ];
     }
 }

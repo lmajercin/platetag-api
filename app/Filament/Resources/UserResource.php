@@ -45,6 +45,19 @@ class UserResource extends Resource
                     ->helperText('Grants access to this admin panel.')
                     ->inline(false),
             ]),
+
+            Forms\Components\Section::make('Premium Access')->schema([
+                Forms\Components\Toggle::make('is_premium')
+                    ->label('Full Access (permanent)')
+                    ->helperText('Grants unlimited plate collection. Use for paying customers or permanent comps.')
+                    ->inline(false),
+                Forms\Components\DateTimePicker::make('promo_expires_at')
+                    ->label('Promo Access Expires At')
+                    ->helperText('Grant timed free access (e.g. beta testers). Leave blank for no timed access. App shows paywall when this date passes.')
+                    ->nullable()
+                    ->displayFormat('M j, Y g:i A')
+                    ->native(false),
+            ])->columns(2),
         ]);
     }
 
@@ -55,6 +68,13 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('name')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('email')->sortable()->searchable(),
                 Tables\Columns\IconColumn::make('is_admin')->boolean()->label('Admin')->sortable(),
+                Tables\Columns\IconColumn::make('is_premium')->boolean()->label('Premium')->sortable(),
+                Tables\Columns\TextColumn::make('promo_expires_at')
+                    ->label('Promo Expires')
+                    ->dateTime('M j, Y')
+                    ->sortable()
+                    ->toggleable()
+                    ->placeholder('—'),
                 Tables\Columns\IconColumn::make('email_verified_at')
                     ->label('Verified')
                     ->boolean()
@@ -65,6 +85,7 @@ class UserResource extends Resource
             ->defaultSort('name')
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_admin')->label('Admin only'),
+                Tables\Filters\TernaryFilter::make('is_premium')->label('Premium only'),
                 Tables\Filters\TernaryFilter::make('email_verified_at')
                     ->label('Verified')
                     ->nullable(),

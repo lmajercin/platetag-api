@@ -405,6 +405,7 @@ Apple accepted the Build 65 binary on the first attempt but EAS reported failure
 - Any new or modified middleware
 - Any Eloquent model changes touching `$fillable`
 - **Any Filament resource changes (pages, forms, tables, authorization, imports/exports)**
+- **Any new migration file** — local migrations sync to production. See Local Migration Gate in `hard-gates.instructions.md`.
 
 ### What to pass to the Audit agent
 1. Files changed since the last build/deployment

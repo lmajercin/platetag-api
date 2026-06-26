@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\SocialAuthController;
 use App\Models\User;
 use App\Services\SocialTokenVerifier;
 use Illuminate\Http\JsonResponse;
@@ -454,8 +455,10 @@ class AuthController extends Controller
         if ($user->socialAccounts()->exists()) {
             // Social-only account — registered via OAuth; require provider re-authentication
             $data = $request->validate([
-                'provider' => ['required', 'string', 'in:google,facebook'],
+                'provider' => ['required', 'string', 'in:google,facebook,apple'],
                 'token'    => ['required', 'string', 'max:4096'],
+                // Apple re-auth returns a fresh authorization_code — used to get a revocation token
+                'authorization_code' => ['nullable', 'string', 'max:1024'],
             ]);
 
             $verifier     = app(SocialTokenVerifier::class);
@@ -472,6 +475,26 @@ class AuthController extends Controller
 
             if (! $linked) {
                 return response()->json(['message' => 'Re-authentication failed.'], 401);
+            }
+
+            // Apple requires token revocation before account deletion (App Store Guideline 5.1.1(v))
+            if ($data['provider'] === 'apple') {
+                $socialController = app(SocialAuthController::class);
+                $socialAccount    = $user->socialAccounts()->where('provider', 'apple')->first();
+                $refreshToken     = $socialAccount?->apple_refresh_token;
+
+                // Prefer stored refresh_token; fall back to exchanging a fresh authorization_code
+                if (! $refreshToken && ! empty($data['authorization_code'])) {
+                    $refreshToken = $socialController->exchangeAppleAuthCode($data['authorization_code']);
+                }
+
+                if ($refreshToken) {
+                    $socialController->revokeAppleToken($refreshToken);
+                } else {
+                    Log::warning('Apple account deletion without token revocation — no refresh_token available', [
+                        'user_id' => $user->id,
+                    ]);
+                }
             }
         } else {
             $data = $request->validate([

@@ -31,6 +31,24 @@ applyTo: "**"
 - Ownership check required before any mutation — users may only modify their own data.
 - Never truncate `user_discovered_plates` without a documented backup.
 
+## Local Migration Gate (HARD — enacted 2026-06-23)
+
+**Every local migration is a production schema change.** The DB sync script (`sync_to_prod.ps1`) is a one-way street: local → production. There is no such thing as a migration that stays local. Any migration run on localhost will reach production on the next sync.
+
+Before running `php artisan migrate` for any new migration file, ALL of the following must be confirmed:
+
+1. **Audit agent review required.** The migration is treated as a production schema change. Invoke `@Audit` before running.
+2. **API exposure check (mandatory).** For every new column added to a table that is returned by any API endpoint (`plates`, `series`, `regions`, `categories`, `users`, etc.): confirm the column is in `$hidden` on the Eloquent model, or confirm intentional exposure is documented.
+3. **Reversibility check.** Verify the `down()` method correctly reverses the `up()`. A migration with a broken rollback is a production risk.
+4. **Sync scope check.** Confirm whether the new columns should be included in the DB sync or excluded. The sync script truncates and re-imports — new columns on tables that ARE synced will be overwritten if the dump does not include them.
+
+### Why this rule exists (2026-06-23 — tagger migration incident)
+- Migration added `ai_detail`, `ai_tags`, `ai_reviewed` to the `plates` table.
+- Classified as admin-only → no Audit gate triggered (correct classification, but incomplete reasoning).
+- The API `show()` endpoint serializes the full Plate model. New columns were immediately exposed to mobile app and web app users.
+- The exposure was caught during a post-implementation governance review — not before the migration ran.
+- **A pre-migration Audit would have caught the `$hidden` gap in under 60 seconds.**
+
 ## Communication Rules
 - Max 3 action steps per reply. Stop and wait for Larry's response before continuing.
 - Never create a file without running `file_search` first.

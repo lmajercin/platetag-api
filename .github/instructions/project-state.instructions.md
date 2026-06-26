@@ -13,14 +13,12 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 - `plates_react` is a retired legacy project. **OFF LIMITS.** Do not read from, write to, or reference it.
 - `plates_react/tools/prod_sync.py` — **BANNED.** Wiped production database on May 9, 2026.
 
-## Current State (as of 2026-05-28)
+## Current State (as of 2026-06-24)
 
-- Production DB: plates=10,120 | series=255 | regions=99 | categories=16
-- Last synced: 2026-06-09
-- Mobile app: v1.2.0 — iOS build 70 / Android build 70 — SUBMITTED 2026-06-17. iOS in App Store Review (submitted 2026-06-19, manual release). Next build = 71 (both platforms).
-- **Build 65/66 note:** Superseded by Build 67.
+- Production DB: plates=10,171 | series=256 | regions=99 | categories=16
+- Last synced: 2026-06-23 23:56:34 (MATCH on all 4 tables)
+- Mobile app: v1.2.0 — Build 71 (both platforms) — SUBMITTED 2026-06-21. iOS in App Store Review (manual release hold). Android in Closed Testing Alpha. Next build = 72 (both platforms).
 - **Web app: ✅ V1 COMPLETE at https://platetag.app (2026-06-04).** PWA + cookie auth live. DNS cutover done.
-- **Web app: ✅ LIVE at https://platetag.app (2026-06-03). ~99% V1 complete. DNS cutover done. `APP_URL` on production `.env` = `https://api.platetag.app`. Delete Discovery, Pin Correction, ToS/Privacy, OG image, Search Console all done. PWA manifest is the only remaining V1 item.**
 - Local WAMP DB (`platetag_db1`) is **source of truth** for all content
 - **Android auto-submit:** `google-play-service-account.json` in project root. `eas submit --platform all` now automated.
 - **Filament 2FA:** ✅ ENABLED on production 2026-05-25 — `jeffgreco13/filament-breezy v2.6.4`, TOTP via Google Authenticator. `breezy_sessions` table migrated on production.
@@ -30,6 +28,8 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
   - `create_promo_codes_table` (2026-05-25) — code, discount_type (enum: free), starts_at, expires_at, max_uses, uses_count, is_active, notes
   - `create_promo_code_redemptions_table` (2026-05-25) — promo_code_id, user_id, redeemed_at; unique on (promo_code_id, user_id)
   - `add_promo_expires_at_to_users_table` (2026-05-25) — nullable timestamp on users
+- **Production migrations deployed 2026-06-23:**
+  - `2026_06_23_000001_add_ai_columns_to_plates_table` — adds `ai_detail` (text), `ai_tags` (varchar 500), `ai_reviewed` (boolean, default false) to plates table. Staging columns for LLM tagger review workflow. SCP'd + ran on production 2026-06-23.
 - **A2 Hosting cron job:** live 2026-05-25 — `schedule:run` every minute. `ExpirePromoAccess` fires nightly at 02:00.
 - **Password reset abuse hardening:** Deployed on production 2026-05-28.
   - `mobile_otp_resets.attempts` migration applied (`2026_05_28_000004`, batch 14).
@@ -39,6 +39,18 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
   - `SESSION_DOMAIN=.platetag.app`, `SESSION_SECURE_COOKIE=true`, `SANCTUM_STATEFUL_DOMAINS=platetag.app,localhost,localhost:3000`
 - **Production `.env` additions still pending (add before promo/payment deploy):**
   - `FREE_PLATE_CAP`, `REVENUECAT_SECRET_KEY`, `REVENUECAT_ENTITLEMENT_ID`, `LAUNCH_DATE` (set on launch day for 14-day free window)
+- **PlatesController.php deployed 2026-06-24:** `makeHidden(['ai_detail','ai_tags','ai_reviewed'])` in `index()` + `show()`. SCP'd to production + smoke-tested — confirmed absent from `/api/v1/plates?per_page=1` response.
+
+## Vision LLM Plate Tagger (local admin tool — enacted 2026-06-23)
+
+- **Command:** `php artisan tagger:run` — local WAMP only. Never runs on production.
+- **Purpose:** Batch-generates AI descriptions (`ai_detail`) and tags (`ai_tags`) for plates with empty `detail` + `tags`. Uses GPT-4o Vision API.
+- **Files:** `app/Console/Commands/TagPlatesWithVision.php`, desktop shortcut `C:\Users\lmaje\Desktop\Run-PlateTagger.bat`
+- **API key:** `OPENAI_API_KEY` in local `.env` only. Never commit, never put on production.
+- **Eligibility:** Only plates where BOTH `detail` and `tags` are null/empty. Writes to `ai_detail` + `ai_tags` staging columns only — never touches `detail`, `tags`, `header_override`, `footer_override`.
+- **Review workflow:** Filament → Plates → Filter: AI Review → Needs review. Edit draft, click Approve → copies to live `detail`/`tags`. Approve button blocked on production (Content Editing Gate + production environment check).
+- **Failure log:** `storage/logs/tagger-failures.log`
+- **Status as of 2026-06-23:** 159 plates approved. 8,658 remaining in queue (both fields empty).
 
 ---
 

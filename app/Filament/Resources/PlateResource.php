@@ -10,6 +10,7 @@ use App\Models\Series;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -113,6 +114,51 @@ class PlateResource extends Resource
                     }),
             ]),
 
+            Forms\Components\Section::make('AI Review')
+                ->description('GPT-4o generated drafts. Review, edit if needed, then Approve to copy to live fields.')
+                ->icon('heroicon-o-sparkles')
+                ->hiddenOn('create')
+                ->visible(fn ($record) => $record && $record->ai_detail)
+                ->schema([
+                    Forms\Components\Textarea::make('ai_detail')
+                        ->label('AI Draft — Detail')
+                        ->rows(4)
+                        ->columnSpanFull(),
+                    Forms\Components\TextInput::make('ai_tags')
+                        ->label('AI Draft — Tags')
+                        ->maxLength(500)
+                        ->columnSpanFull(),
+                    Forms\Components\Toggle::make('ai_reviewed')
+                        ->label('Approved')
+                        ->disabled()
+                        ->inline(false),
+                    Forms\Components\Actions::make([
+                        Forms\Components\Actions\Action::make('approve_ai')
+                            ->label('Approve — Copy to Live Fields')
+                            ->color('success')
+                            ->icon('heroicon-o-check-circle')
+                            ->requiresConfirmation()
+                            ->modalHeading('Approve AI suggestions?')
+                            ->modalDescription('Copies ai_detail → detail and ai_tags → tags. Any existing values will be overwritten.')
+                            ->visible(fn ($record) => $record && $record->ai_detail && ! $record->ai_reviewed && ! app()->environment('production'))
+                            ->authorize(fn () => ! app()->environment('production'))
+                            ->action(function ($record, Forms\Set $set) {
+                                $record->update([
+                                    'detail'      => $record->ai_detail,
+                                    'tags'        => $record->ai_tags,
+                                    'ai_reviewed' => true,
+                                ]);
+                                $set('detail', $record->ai_detail);
+                                $set('tags', $record->ai_tags);
+                                $set('ai_reviewed', true);
+                                Notification::make()
+                                    ->title('AI suggestions approved')
+                                    ->success()
+                                    ->send();
+                            }),
+                    ]),
+                ])->columns(2),
+
             Forms\Components\Section::make('Status')->schema([
                 Forms\Components\Toggle::make('is_active')->default(true)->inline(false),
                 Forms\Components\Toggle::make('updates_complete')->default(false)->inline(false),
@@ -170,6 +216,15 @@ class PlateResource extends Resource
                     ->falseIcon('heroicon-o-bookmark')
                     ->trueColor('info')
                     ->falseColor('gray'),
+                Tables\Columns\IconColumn::make('ai_reviewed')
+                    ->label('AI')
+                    ->boolean()
+                    ->sortable()
+                    ->trueIcon('heroicon-s-sparkles')
+                    ->falseIcon('heroicon-o-sparkles')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('name')
             ->defaultPaginationPageOption(50)
@@ -202,6 +257,18 @@ class PlateResource extends Resource
                     ->query(fn ($query, $data) => $data['value']
                         ? $query->whereHas('series', fn ($q) => $q->where('region_id', $data['value']))
                         : $query),
+                Tables\Filters\TernaryFilter::make('needs_ai_review')
+                    ->label('AI Review')
+                    ->nullable()
+                    ->trueLabel('Needs review (ai_detail set, not approved)')
+                    ->falseLabel('Approved')
+                    ->queries(
+                        true: fn ($query) => $query->whereNotNull('ai_detail')
+                            ->where('ai_detail', '!=', '')
+                            ->where('ai_reviewed', false),
+                        false: fn ($query) => $query->where('ai_reviewed', true),
+                        blank: fn ($query) => $query,
+                    ),
                 Tables\Filters\TernaryFilter::make('has_image')
                     ->label('Has Image')
                     ->nullable()
@@ -213,7 +280,24 @@ class PlateResource extends Resource
                         blank: fn ($query) => $query,
                     ),
             ])
-            ->actions([Tables\Actions\EditAction::make(), Tables\Actions\DeleteAction::make()])
+            ->actions([
+                Tables\Actions\Action::make('approve_ai')
+                    ->label('Approve AI')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Approve AI suggestions?')
+                    ->modalDescription('Copies ai_detail → detail and ai_tags → tags.')
+                    ->visible(fn ($record) => $record->ai_detail && ! $record->ai_reviewed && ! app()->environment('production'))
+                    ->authorize(fn () => ! app()->environment('production'))
+                    ->action(fn ($record) => $record->update([
+                        'detail'      => $record->ai_detail,
+                        'tags'        => $record->ai_tags,
+                        'ai_reviewed' => true,
+                    ])),
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
+            ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     BulkAction::make('assignCategory')

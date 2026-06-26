@@ -104,14 +104,16 @@ class PlatesController extends Controller
         }
 
         $plates  = $query->paginate($perPage);
-        $items = collect($plates->items())->map(function (Plate $plate) use ($request) {
+        $aiColumns = ['ai_detail', 'ai_tags', 'ai_reviewed'];
+
+        $items = collect($plates->items())->map(function (Plate $plate) use ($request, $aiColumns) {
             $plate->image_url = $this->publicStorageUrl($request, 'plates', $plate->image_filename);
 
             if ($plate->series) {
                 $plate->series->image_url = $this->publicStorageUrl($request, 'series', $plate->series->image_filename);
             }
 
-            return $plate;
+            return $plate->makeHidden($aiColumns);
         })->values();
 
         return response()->json([
@@ -144,7 +146,7 @@ class PlatesController extends Controller
             $plate->series->image_url = $this->publicStorageUrl($request, 'series', $plate->series->image_filename);
         }
 
-        return response()->json($plate);
+        return response()->json($plate->makeHidden(['ai_detail', 'ai_tags', 'ai_reviewed']));
     }
 
     /**

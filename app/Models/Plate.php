@@ -16,6 +16,7 @@ class Plate extends Model
         'header_override', 'footer_override', 'detail', 'tags', 'serial_format',
         'image_filename', 'updates_complete', 'is_active',
         'is_primary', 'is_secondary',
+        'ai_detail', 'ai_tags', 'ai_reviewed',
     ];
 
     protected $casts = [
@@ -23,6 +24,7 @@ class Plate extends Model
         'updates_complete' => 'boolean',
         'is_primary'       => 'boolean',
         'is_secondary'     => 'boolean',
+        'ai_reviewed'      => 'boolean',
     ];
 
     public function series(): BelongsTo
