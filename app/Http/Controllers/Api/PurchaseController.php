@@ -145,15 +145,16 @@ class PurchaseController extends Controller
     }
 
     /**
-     * Query RevenueCat's GET /v1/subscribers/{app_user_id} endpoint to confirm
-     * the user has an active entitlement. The RevenueCat SDK syncs the transaction
-     * to RevenueCat servers before this is called — no raw receipt is needed.
+     * Query RevenueCat V2 API to confirm the user has an active entitlement.
+     * Endpoint: GET /v2/projects/{project_id}/customers/{customer_id}
      *
-     * Rejects sandbox entitlements when APP_ENV=production.
+     * V2 key (sk_...) is incompatible with the V1 /v1/subscribers/ endpoint — use V2 only.
+     * The RevenueCat SDK syncs the transaction before this is called; no raw receipt needed.
      */
     private function validateWithRevenueCat(int $userId): array
     {
         $secretKey     = config('services.revenuecat.secret_key');
+        $projectId     = config('services.revenuecat.project_id');
         $entitlementId = config('services.revenuecat.entitlement_id', 'full_access');
 
         if (! $secretKey) {
@@ -161,53 +162,56 @@ class PurchaseController extends Controller
             return ['valid' => false, 'reason' => 'RevenueCat not configured'];
         }
 
+        if (! $projectId) {
+            Log::error('REVENUECAT_PROJECT_ID is not configured');
+            return ['valid' => false, 'reason' => 'RevenueCat project not configured'];
+        }
+
+        // Use the dedicated active_entitlements endpoint — the customer object does NOT
+        // include active_entitlements by default per RC V2 docs and confirmed community reports.
+        $url = "https://api.revenuecat.com/v2/projects/{$projectId}/customers/{$userId}/active_entitlements";
+
         $response = Http::timeout(10)->withHeaders([
             'Authorization' => 'Bearer ' . $secretKey,
             'Content-Type'  => 'application/json',
-        ])->get('https://api.revenuecat.com/v1/subscribers/' . $userId);
+        ])->get($url);
 
         if (! $response->successful()) {
+            Log::error('RevenueCat V2 active_entitlements API error', [
+                'user_id' => $userId,
+                'status'  => $response->status(),
+                'body'    => $response->body(),
+            ]);
             return [
                 'valid'  => false,
                 'reason' => 'RevenueCat API returned HTTP ' . $response->status(),
             ];
         }
 
-        $body       = $response->json();
-        $subscriber = $body['subscriber'] ?? null;
+        $body  = $response->json();
+        $items = $body['items'] ?? [];
 
-        if (! $subscriber) {
-            return ['valid' => false, 'reason' => 'No subscriber object in RevenueCat response'];
+        // RC V2 active_entitlement object: { entitlement_id, expires_at (Unix ms, null = lifetime) }
+        // Filter to only the entitlement this app grants (full_access). Guards against accidental
+        // premium grant if RC ever adds system-level entitlements to the items array.
+        $items = array_values(array_filter($items, fn($item) => ($item['entitlement_id'] ?? '') === $entitlementId));
+
+        if (empty($items)) {
+            return ['valid' => false, 'reason' => "No active '{$entitlementId}' entitlement found for user {$userId}"];
         }
 
-        // Confirm the target entitlement exists and is not expired.
-        $entitlements = $subscriber['entitlements'] ?? [];
-        $entitlement  = $entitlements[$entitlementId] ?? null;
-
-        if (! $entitlement) {
-            return ['valid' => false, 'reason' => "Entitlement '{$entitlementId}' not found"];
-        }
-
-        // expires_date is null for lifetime/one-time purchases — that is a valid active state.
-        if (
-            $entitlement['expires_date'] !== null &&
-            \Carbon\Carbon::parse($entitlement['expires_date'])->isPast()
-        ) {
-            return ['valid' => false, 'reason' => "Entitlement '{$entitlementId}' is expired"];
-        }
-
-        // In production, reject sandbox entitlements to prevent abuse.
-        if (app()->environment('production')) {
-            $nonSubscriptions = $subscriber['non_subscriptions'] ?? [];
-            foreach ($nonSubscriptions as $transactions) {
-                foreach ($transactions as $tx) {
-                    if (($tx['is_sandbox'] ?? false) === true) {
-                        return ['valid' => false, 'reason' => 'Sandbox purchase rejected in production'];
-                    }
-                }
+        // For safety, verify none of the items are expired (null expires_at = lifetime purchase).
+        foreach ($items as $item) {
+            $expiresAt = $item['expires_at'] ?? null;
+            if ($expiresAt === null) {
+                return ['valid' => true]; // lifetime/one-time purchase — always valid
+            }
+            // expires_at is a Unix timestamp in milliseconds
+            if ($expiresAt > (time() * 1000)) {
+                return ['valid' => true]; // not yet expired
             }
         }
 
-        return ['valid' => true];
+        return ['valid' => false, 'reason' => 'All entitlements are expired'];
     }
 }
