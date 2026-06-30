@@ -29,6 +29,12 @@ class PurchaseController extends Controller
      */
     public function verify(Request $request): JsonResponse
     {
+        Log::info('Purchase verify: request received', [
+            'user_id'    => $request->user()?->id,
+            'ip'         => $request->ip(),
+            'body_keys'  => array_keys($request->all()),
+        ]);
+
         $data = $request->validate([
             // 'founding' and 'stripe' are NEVER accepted from client input.
             // 'founding' is set server-side at registration. 'stripe' is handled via webhook (future).
@@ -73,6 +79,19 @@ class PurchaseController extends Controller
             if ($existing->user_id === $user->id) {
                 // Same user, same transaction — idempotent success.
                 // This is the normal path for "Restore Purchases" taps.
+                // Ensure is_premium is set even if the original grant failed
+                // (e.g. the first request timed out after writing the purchase row
+                // but before the user UPDATE committed).
+                if (! $user->is_premium) {
+                    $user->forceFill([
+                        'is_premium'         => true,
+                        'premium_granted_at' => now(),
+                    ])->save();
+                    Log::error('Purchase idempotent: is_premium was missing, repaired', [
+                        'user_id'        => $user->id,
+                        'transaction_id' => $data['transaction_id'],
+                    ]);
+                }
                 return response()->json([
                     'message'    => 'Purchase already verified.',
                     'is_premium' => true,
@@ -131,7 +150,15 @@ class PurchaseController extends Controller
             });
         } catch (UniqueConstraintViolationException) {
             // Lost the race — another concurrent request already verified and inserted this
-            // transaction. The premium grant from that request is already applied.
+            // transaction. Ensure is_premium is set in case the winner's user UPDATE
+            // hasn't committed yet (very narrow window) or failed.
+            $user->refresh();
+            if (! $user->is_premium) {
+                $user->forceFill([
+                    'is_premium'         => true,
+                    'premium_granted_at' => now(),
+                ])->save();
+            }
             return response()->json([
                 'message'    => 'Purchase already verified.',
                 'is_premium' => true,
@@ -146,10 +173,16 @@ class PurchaseController extends Controller
 
     /**
      * Query RevenueCat V2 API to confirm the user has an active entitlement.
-     * Endpoint: GET /v2/projects/{project_id}/customers/{customer_id}
+     * Endpoint: GET /v2/projects/{project_id}/customers/{customer_id}/active_entitlements
      *
      * V2 key (sk_...) is incompatible with the V1 /v1/subscribers/ endpoint — use V2 only.
      * The RevenueCat SDK syncs the transaction before this is called; no raw receipt needed.
+     *
+     * Retries 4 times total with progressive delays (2s, 3s, 5s = 10s window).
+     * RevenueCat's REST API can lag behind the SDK's local purchase confirmation due to
+     * database replica propagation — documented as common in Apple sandbox ("notoriously
+     * unperformant"). Without retries the entitlement lookup returns empty immediately after
+     * purchase even though the SDK has confirmed success, causing a false 422 rejection.
      */
     private function validateWithRevenueCat(int $userId): array
     {
@@ -167,51 +200,86 @@ class PurchaseController extends Controller
             return ['valid' => false, 'reason' => 'RevenueCat project not configured'];
         }
 
-        // Use the dedicated active_entitlements endpoint — the customer object does NOT
-        // include active_entitlements by default per RC V2 docs and confirmed community reports.
         $url = "https://api.revenuecat.com/v2/projects/{$projectId}/customers/{$userId}/active_entitlements";
 
-        $response = Http::timeout(10)->withHeaders([
-            'Authorization' => 'Bearer ' . $secretKey,
-            'Content-Type'  => 'application/json',
-        ])->get($url);
+        Log::info('RevenueCat lookup starting', [
+            'user_id'        => $userId,
+            'url'            => $url,
+            'entitlement_id' => $entitlementId,
+            'has_secret_key' => !empty($secretKey),
+            'has_project_id' => !empty($projectId),
+        ]);
 
-        if (! $response->successful()) {
-            Log::error('RevenueCat V2 active_entitlements API error', [
-                'user_id' => $userId,
-                'status'  => $response->status(),
-                'body'    => $response->body(),
+        // Retry schedule in seconds: gives RevenueCat's read replicas time to catch up.
+        // Apple sandbox can lag 2-10+ seconds (RevenueCat docs: "sandbox is notoriously unperformant").
+        // Total coverage window: ~10 seconds after the app makes this request.
+        // Attempt 1 is immediate; delays apply between attempts.
+        $retryDelays = [2, 3, 5]; // 3 gaps → 4 total attempts
+        $maxAttempts = count($retryDelays) + 1;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $response = Http::timeout(10)->withHeaders([
+                'Authorization' => 'Bearer ' . $secretKey,
+                'Content-Type'  => 'application/json',
+            ])->get($url);
+
+            if (! $response->successful()) {
+                Log::error('RevenueCat V2 active_entitlements API error', [
+                    'user_id' => $userId,
+                    'attempt' => $attempt,
+                    'status'  => $response->status(),
+                    'body'    => $response->body(),
+                ]);
+                // Non-2xx is a hard API error — no benefit in retrying.
+                return [
+                    'valid'  => false,
+                    'reason' => 'RevenueCat API returned HTTP ' . $response->status(),
+                ];
+            }
+
+            $body  = $response->json();
+            $items = $body['items'] ?? [];
+
+            // RC V2 active_entitlement object: { entitlement_id, expires_at (Unix ms, null = lifetime) }
+            // Filter to only the entitlement this app grants (full_access). Guards against accidental
+            // premium grant if RC ever adds system-level entitlements to the items array.
+            $items = array_values(array_filter($items, fn($item) => ($item['entitlement_id'] ?? '') === $entitlementId));
+
+            Log::info('RevenueCat response', [
+                'user_id'     => $userId,
+                'attempt'     => $attempt,
+                'status'      => $response->status(),
+                'items_count' => count($items),
+                'raw_items'   => $items,
             ]);
-            return [
-                'valid'  => false,
-                'reason' => 'RevenueCat API returned HTTP ' . $response->status(),
-            ];
-        }
 
-        $body  = $response->json();
-        $items = $body['items'] ?? [];
-
-        // RC V2 active_entitlement object: { entitlement_id, expires_at (Unix ms, null = lifetime) }
-        // Filter to only the entitlement this app grants (full_access). Guards against accidental
-        // premium grant if RC ever adds system-level entitlements to the items array.
-        $items = array_values(array_filter($items, fn($item) => ($item['entitlement_id'] ?? '') === $entitlementId));
-
-        if (empty($items)) {
-            return ['valid' => false, 'reason' => "No active '{$entitlementId}' entitlement found for user {$userId}"];
-        }
-
-        // For safety, verify none of the items are expired (null expires_at = lifetime purchase).
-        foreach ($items as $item) {
-            $expiresAt = $item['expires_at'] ?? null;
-            if ($expiresAt === null) {
-                return ['valid' => true]; // lifetime/one-time purchase — always valid
+            if (! empty($items)) {
+                // For safety, verify none of the items are expired (null expires_at = lifetime purchase).
+                foreach ($items as $item) {
+                    $expiresAt = $item['expires_at'] ?? null;
+                    if ($expiresAt === null) {
+                        return ['valid' => true]; // lifetime/one-time purchase — always valid
+                    }
+                    // expires_at is a Unix timestamp in milliseconds
+                    if ($expiresAt > (time() * 1000)) {
+                        return ['valid' => true]; // not yet expired
+                    }
+                }
+                return ['valid' => false, 'reason' => 'All entitlements are expired'];
             }
-            // expires_at is a Unix timestamp in milliseconds
-            if ($expiresAt > (time() * 1000)) {
-                return ['valid' => true]; // not yet expired
+
+            // Entitlement not visible yet — wait before retrying (except on the last attempt).
+            if ($attempt < $maxAttempts) {
+                $delay = $retryDelays[$attempt - 1];
+                Log::info('RevenueCat entitlement not propagated yet, retrying', [
+                    'user_id'      => $userId,
+                    'attempt'      => $attempt,
+                    'delay_next_s' => $delay,
+                ]);
+                sleep($delay);
             }
         }
 
-        return ['valid' => false, 'reason' => 'All entitlements are expired'];
+        return ['valid' => false, 'reason' => "No active '{$entitlementId}' entitlement found for user {$userId} after {$maxAttempts} attempts"];
     }
 }
