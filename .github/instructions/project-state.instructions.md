@@ -8,49 +8,121 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 
 ## Project Identity
 
-- **platetag-api** — Laravel 11 backend API + Filament admin panel
+- **platetag-api** — Laravel 12 backend API + Filament admin panel
 - **platetag-app** — React Native / Expo mobile app (sibling project at `C:\wamp64\www\platetag-app\`)
 - `plates_react` is a retired legacy project. **OFF LIMITS.** Do not read from, write to, or reference it.
 - `plates_react/tools/prod_sync.py` — **BANNED.** Wiped production database on May 9, 2026.
 
-## Current State (as of 2026-06-24)
+## Current State (as of 2026-09-06)
 
-- Production DB: plates=10,171 | series=256 | regions=99 | categories=16
-- Last synced: 2026-06-23 23:56:34 (MATCH on all 4 tables)
-- Mobile app: v1.2.0 — Build 71 (both platforms) — SUBMITTED 2026-06-21. iOS in App Store Review (manual release hold). Android in Closed Testing Alpha. Next build = 72 (both platforms).
-- **Web app: ✅ V1 COMPLETE at https://platetag.app (2026-06-04).** PWA + cookie auth live. DNS cutover done.
-- Local WAMP DB (`platetag_db1`) is **source of truth** for all content
-- **Android auto-submit:** `google-play-service-account.json` in project root. `eas submit --platform all` now automated.
-- **Filament 2FA:** ✅ ENABLED on production 2026-05-25 — `jeffgreco13/filament-breezy v2.6.4`, TOTP via Google Authenticator. `breezy_sessions` table migrated on production.
-- **Local-only migrations applied (not yet on production):**
-  - `add_premium_fields_to_users_table` (2026-05-24) — `is_premium`, `is_founding_member` (repurposed: set true for 14-day launch window accounts), `premium_granted_at` on users
-  - `create_purchases_table` (2026-05-24) — IAP receipt storage with encrypted `raw_receipt`
-  - `create_promo_codes_table` (2026-05-25) — code, discount_type (enum: free), starts_at, expires_at, max_uses, uses_count, is_active, notes
-  - `create_promo_code_redemptions_table` (2026-05-25) — promo_code_id, user_id, redeemed_at; unique on (promo_code_id, user_id)
-  - `add_promo_expires_at_to_users_table` (2026-05-25) — nullable timestamp on users
-- **Production migrations deployed 2026-06-23:**
-  - `2026_06_23_000001_add_ai_columns_to_plates_table` — adds `ai_detail` (text), `ai_tags` (varchar 500), `ai_reviewed` (boolean, default false) to plates table. Staging columns for LLM tagger review workflow. SCP'd + ran on production 2026-06-23.
-- **A2 Hosting cron job:** live 2026-05-25 — `schedule:run` every minute. `ExpirePromoAccess` fires nightly at 02:00.
-- **Password reset abuse hardening:** Deployed on production 2026-05-28.
-  - `mobile_otp_resets.attempts` migration applied (`2026_05_28_000004`, batch 14).
-  - Reset OTP TTL reduced to 30 minutes.
-  - Runtime verification (clean account path) confirmed lockout threshold behavior (`422, 422, 422, 422, 429, 422`).
-- **Production `.env` — web session vars added 2026-05-30:**
-  - `SESSION_DOMAIN=.platetag.app`, `SESSION_SECURE_COOKIE=true`, `SANCTUM_STATEFUL_DOMAINS=platetag.app,localhost,localhost:3000`
-- **Production `.env` additions still pending (add before promo/payment deploy):**
-  - `FREE_PLATE_CAP`, `REVENUECAT_SECRET_KEY`, `REVENUECAT_ENTITLEMENT_ID`, `LAUNCH_DATE` (set on launch day for 14-day free window)
-- **PlatesController.php deployed 2026-06-24:** `makeHidden(['ai_detail','ai_tags','ai_reviewed'])` in `index()` + `show()`. SCP'd to production + smoke-tested — confirmed absent from `/api/v1/plates?per_page=1` response.
+- Production DB: plates=10,349 | series=260 | regions=99 | categories=17
+- Last content sync: 2026-09-06 19:26 EDT — all 4 tables MATCH (+1 plate ID 10866 RI - Antique - v1; +1 plate image)
+- **Vision tagging backfill:** ✅ **CONCLUDED 2026-07-22**
+- Mobile app: **Build 85 LIVE** — iOS/Android v1.4.0 (85). Live iOS 2026-09-05, Android 2026-09-04. **Build 86 PLANNED** — submit ~2026-10-05 (ALPCA badges, contact form fix, Road Trip UI revamp, B-24 explore icon, B-26 login route fix). @Design session ~2026-09-22.
+- **Filament Analytics:** ✅ **LIVE on production** 2026-08-21 — Discovery Insights, Discovery Map, Usage Reports; `geo_usage_snapshots` migrated + 147-day backfill; schedule `analytics:snapshot-geo` 02:15.
+- **Backuply:** ✅ Automated Google Drive backups restored 2026-07-14.
+- **Web app:** ✅ V1 LIVE at https://platetag.app. Full session (W-1+W-2+W-3) of web updates deployed 2026-09-07: Road Trips rename, OSM tiles, Summer theme (default), full-page map, global counter, share buttons on Road Trips + Collection, web claim flow on both share pages. See `platetag-web/docs/WEB_STATUS.md` for full detail.
+- **Share controllers hotfix (2026-09-07):** `PlateShareController` + `SessionShareController` — null default-session guard added inside `claim()` DB transaction (B-2 from @Audit review). `PlateShareController` also got sort-before-compare fix for plate_ids token-reuse check (R-1). Deployed via SCP directly.
+- Local WAMP DB (`platetag_db1`) is **source of truth** for plate content.
+- **A2 Hosting cron:** live — `schedule:run` every minute; `ExpirePromoAccess` 02:00; `analytics:snapshot-geo` 02:15.
+- **Filament 2FA:** ✅ ENABLED — `jeffgreco13/filament-breezy v2.6.4`.
+
+---
+
+## Admin Backlog (low priority — future builds)
+
+| ID | Area | Description | Notes |
+|----|------|-------------|-------|
+| A-1 | Discovery Map | CARTO tile API key missing — map shows "API KEY REQUIRED" watermark. Register free account at carto.com, get API key, insert into tile URL in `discovery-map.blade.php` line ~87 (`cartocdn.com/dark_all/...`). **Not a purchase** — CARTO free tier covers this usage level. | ✅ Resolved 2026-09-07. Switched to OpenStreetMap tiles (`tile.openstreetmap.org`). CARTO CDN watermarked on both `dark_all` and `light_all` — no free tier available. OSM is 100% free, no account or key required. |
+| A-2 | Discovery Map | Switch basemap from `dark_all` to `light_all` (or `voyager`) for a lighter-colored theme. One-line change same file, same line as A-1. Do A-1 and A-2 together. | ✅ Resolved 2026-09-07. `light_all` deployed. Shell background also lightened to `#f8fafc` to match. |
+| A-3 | Usage Analytics | New report: users who registered **after 2026-08-15** (end of grand opening premium grants) — columns: user, registration date, unique plates in collection, premium/free status. Surfaces post-launch organic user behavior. Add as a new table/tab in `UsageAnalytics.php` or a separate Filament page. | ✅ Resolved 2026-09-07. "Post-Launch Users" section added at top of Usage Reports page. Shows all users registered after 2026-08-15 with email, name, date, unique plate count, and Premium/Free plan. |
+
+---
+
+## Filament Analytics upgrade — LIVE on production 2026-08-21
+
+> **Status:** ✅ Deployed to `https://api.platetag.app/admin`. Uses live `user_discovered_plates`.
+
+### What is live
+
+| Item | Detail |
+|---|---|
+| Nav group | **Analytics** |
+| Discovery Insights | `/admin/discovery-insights` |
+| Discovery Map | `/admin/discovery-map` |
+| Usage Reports | `/admin/usage-analytics` (renamed nav label) |
+| Table | `geo_usage_snapshots` — migrated + **147** daily rows backfilled |
+| Command | `php artisan analytics:snapshot-geo` (`--backfill`) |
+| Schedule | `analytics:snapshot-geo` daily 02:15 |
+
+### Deploy notes (2026-08-21)
+
+- Pre-sync verification: plates/series/regions/categories **MATCH** (no truncate needed).
+- SCP of analytics PHP/blade + migration + `bootstrap/app.php` via `platetag-prod`.
+- `php artisan migrate --force --path=...geo_usage_snapshots...` → DONE.
+- `php artisan analytics:snapshot-geo --backfill` → 147 snapshots.
+- Caches cleared (view/cache/route/config).
+
+**Note:** Geo “allow/deny” is inferred from discoveries with coords — OS permission is not stored.
+
 
 ## Vision LLM Plate Tagger (local admin tool — enacted 2026-06-23)
 
-- **Command:** `php artisan tagger:run` — local WAMP only. Never runs on production.
+- **Command (review queue):** `php artisan tagger:run` — local WAMP only. Never runs on production.
+- **Command (bulk auto-approve by series):** `php artisan tagger:bulk-series {series_id}` — writes `ai_detail`, `detail`, `ai_tags`, `tags`, sets `ai_reviewed=1`. Options: `--limit=N`, `--dry-run`, `--plate=ID`. Local WAMP only.
 - **Purpose:** Batch-generates AI descriptions (`ai_detail`) and tags (`ai_tags`) for plates with empty `detail` + `tags`. Uses GPT-4o Vision API.
-- **Files:** `app/Console/Commands/TagPlatesWithVision.php`, desktop shortcut `C:\Users\lmaje\Desktop\Run-PlateTagger.bat`
+- **Files:** `app/Console/Commands/TagPlatesWithVision.php`, `app/Console/Commands/TagPlatesWithVisionBulk.php`, `tools/run_tagger_bulk_series_721.bat`, `tools/run_tagger_bulk_series_848.bat`, desktop shortcut `C:\Users\lmaje\Desktop\Run-PlateTagger.bat`
+- **Bulk SQL (series 721):** `database/sql/maryland_vision_bulk_series_721_PREVIEW.sql` (before), `maryland_vision_bulk_series_721_VERIFY.sql` (after).
+- **Bulk SQL (series 848):** `database/sql/virginia_vision_bulk_series_848_PREVIEW.sql` (before), `virginia_vision_bulk_series_848_VERIFY.sql` (after).
 - **API key:** `OPENAI_API_KEY` in local `.env` only. Never commit, never put on production.
-- **Eligibility:** Only plates where BOTH `detail` and `tags` are null/empty. Writes to `ai_detail` + `ai_tags` staging columns only — never touches `detail`, `tags`, `header_override`, `footer_override`.
-- **Review workflow:** Filament → Plates → Filter: AI Review → Needs review. Edit draft, click Approve → copies to live `detail`/`tags`. Approve button blocked on production (Content Editing Gate + production environment check).
-- **Failure log:** `storage/logs/tagger-failures.log`
-- **Status as of 2026-06-23:** 159 plates approved. 8,658 remaining in queue (both fields empty).
+- **Eligibility:** Only plates where BOTH `detail` and `tags` are null/empty. Lowest `id` first. Skips plates with an unapproved AI draft (`ai_detail` set, `ai_reviewed=false`). Plates cleared back into the queue (`detail`/`tags` empty, `ai_reviewed=true`) are eligible again. Writes to `ai_detail` + `ai_tags` staging columns only — never touches `detail`, `tags`, `header_override`, `footer_override`.
+- **Bulk tagger eligibility:** Only plates where ALL of `detail`, `ai_detail`, `tags`, `ai_tags` are empty AND `ai_reviewed=0`. Any existing content or approved plate is skipped — no overwrite option.
+- **Review workflow:** Filament → Plates → Filter: AI Review → Needs review. Edit draft, click Approve → copies to live `detail`/`tags`. Approve button blocked on production (Content Editing Gate + production environment check). Bulk tagger bypasses manual approve for trusted batch runs.
+- **Failure log:** `storage/logs/tagger-failures.log` (review queue), `storage/logs/tagger-bulk-failures.log` (bulk)
+- **Status:** ✅ **CONCLUDED 2026-07-22** — one-time backfill complete; synced to production. Commands retained for edge-case re-runs on new empty plates only. New plate workflow: enter `detail`/`tags` at upload.
+
+## Header/Footer Vision Tagger (local admin tool — enacted 2026-07-22)
+
+- **Command:** `php artisan tagger:header-footer-series {series_id}` — writes `header_override`, `footer_override`, sets `updates_complete=1`. Options: `--limit=N`, `--dry-run`, `--plate=ID`. Local WAMP only.
+- **Purpose:** Reads header (top-center) and footer (bottom-center, including crowded text below serial) from plate images via GPT-4o Vision. **Never copies plate catalog `name` into overrides** — footer is image text (e.g. title `GA - Cobb County Humane Society` vs footer `Spay * Neuter * Adopt`).
+- **Eligibility:** Both `header_override` and `footer_override` NULL/empty AND `updates_complete=0` AND has image. Partial-NULL rows excluded. Failures leave `updates_complete=0` for redo.
+- **NULL semantics:** NULL header or footer = reviewed, no text in that zone. `updates_complete=1` marks review done even when NULL.
+- **Multi-line:** Join lines within one field with `|` (pipe), top-to-bottom (e.g. `Pearl Harbor Survivor|New Mexico USA`).
+- **Prompt hints:** Region name + plate catalog name as geography context only — not copied into overrides. Pitfalls: SC state name often in footer; ignore middle-left/right/center serial zones; crowded plates include designation text below serial in footer.
+- **Wrapper:** `tools/run_tagger_header_footer_series.bat` — prompts for series ID, dry-run, YES confirm, optional limit.
+- **Test SQL:** `database/sql/header_footer_vision_test_plates_PREVIEW.sql`, `header_footer_vision_test_plates_VERIFY.sql`
+- **Failure log:** `storage/logs/tagger-header-footer-failures.log`
+- **File:** `app/Console/Commands/TagPlatesWithVisionHeaderFooter.php`
+- **Vision detail level:** `high` (small header/footer text).
+- **Status:** ✅ **CONCLUDED 2026-07-22** — all eligible plates processed locally; production synced same day. Commands retained for edge-case re-runs. New plate workflow: enter `header_override`/`footer_override` at upload; set `updates_complete=1`.
+
+### Vision backfill timeline (2026-07-22)
+
+| Phase | Result |
+|---|---|
+| Header/footer tool built + tested | 5 test plates PASS; series 783 first batch (9/9) |
+| Remaining series (lowest → highest ID) | Larry completed all batches locally |
+| Final production sync | 2026-07-22 14:46 MDT — plates=10269 MATCH; images current |
+| **Project status** | **CLOSED** — no further bulk Vision runs planned |
+
+**CLI (retained for edge cases only):**
+```powershell
+cd C:\wamp64\www\platetag-api
+C:\wamp64\bin\php\php8.3.14\php.exe -d memory_limit=512M artisan tagger:header-footer-series {series_id} --dry-run
+C:\wamp64\bin\php\php8.3.14\php.exe -d memory_limit=512M artisan tagger:header-footer-series {series_id}
+```
+Or double-click `tools/run_tagger_header_footer_series.bat`.
+
+**Going forward:** New plate imports enter header, footer, detail, and tags at upload. Sync to production via `sync_to_prod.ps1` when new content is ready.
+
+## Filament Discoveries Admin (deployed 2026-07-02)
+
+- **Discoveries resource:** `UserDiscoveredPlateResource` — view-only list + detail for `user_discovered_plates`. Shows user email, plate name, session, geo fields, notes. No create/edit/delete on local or production.
+- **Usage Analytics page:** `UsageAnalytics` — reports from existing DB only (most discovered plates, discoveries per user, plates per session, discoveries over time 30/90 days). No mobile app instrumentation required.
+- **Models:** `UserDiscoveredPlate`, `DiscoverySession` (Eloquent relationships for Filament display).
+- **Key files:** `app/Filament/Resources/UserDiscoveredPlateResource.php`, `app/Filament/Pages/UsageAnalytics.php`, `resources/views/filament/pages/usage-analytics.blade.php`.
+- **Deployed:** SCP to production 2026-07-02. Routes: `/admin/user-discovered-plates`, `/admin/usage-analytics`. Larry verified PASS same day.
+- **Deferred post-launch:** `app_opens` / `time_in_app` tracking would require mobile app changes + App Store privacy label updates. Not in scope until after store approval.
 
 ---
 
