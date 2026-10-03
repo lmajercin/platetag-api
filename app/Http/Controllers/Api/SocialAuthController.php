@@ -87,6 +87,12 @@ class SocialAuthController extends Controller
                     $name  = $email ? explode('@', $email)[0] : '';
                 }
                 if (! $name) {
+                    Log::warning('Social callback: cannot create user — no name or email fallback', [
+                        'provider'       => $data['provider'],
+                        'has_data_name'  => isset($data['name']),
+                        'has_prov_name'  => isset($providerUser['name']),
+                        'has_prov_email' => isset($providerUser['email']),
+                    ]);
                     return null;
                 }
 

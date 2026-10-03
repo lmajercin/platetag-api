@@ -41,6 +41,12 @@ class AwardRetroactiveBadges extends Command
             ->where('is_active', true)
             ->get();
 
+        $alpcaBadges = DB::table('badges')
+            ->where('type', 'alpca')
+            ->where('is_active', true)
+            ->orderBy('threshold')
+            ->get();
+
         // Map badge_id → set of required region_ids
         $badgeRegionMap = [];
         $badgeRegionRows = DB::table('badge_regions')->get();
@@ -60,11 +66,13 @@ class AwardRetroactiveBadges extends Command
 
         foreach ($users as $user) {
             // Regions this user has discovered at least one plate from
+            // No is_first_discovery filter here — matches BadgeService::userHasCompletedGeographicBadge()
+            // and the progress display in CollectionController::badges(). A region counts as
+            // discovered regardless of whether the plate was a first or repeat discovery.
             $discoveredRegionIds = DB::table('user_discovered_plates as udp')
                 ->join('plates', 'plates.id', '=', 'udp.plate_id')
                 ->join('series', 'series.id', '=', 'plates.series_id')
                 ->where('udp.user_id', $user->id)
-                ->where('udp.is_first_discovery', true)
                 ->whereNotNull('series.region_id')
                 ->pluck('series.region_id')
                 ->unique()
@@ -83,6 +91,14 @@ class AwardRetroactiveBadges extends Command
                 ->pluck('plate_id')
                 ->flip()
                 ->all();
+
+            // Distinct ALPCA award-winning plates first-discovered by this user
+            $alpcaPlateCount = (int) DB::table('user_discovered_plates as udp')
+                ->join('plates as p', 'p.id', '=', 'udp.plate_id')
+                ->where('udp.user_id', $user->id)
+                ->where('udp.is_first_discovery', true)
+                ->where('p.is_alpca_winner', true)
+                ->count(DB::raw('DISTINCT udp.plate_id'));
 
             // Already-earned badge IDs
             $alreadyEarned = DB::table('user_badges')
@@ -144,6 +160,20 @@ class AwardRetroactiveBadges extends Command
                 }
 
                 if ($completed) {
+                    $toInsert[] = [
+                        'user_id'    => $user->id,
+                        'badge_id'   => $badge->id,
+                        'awarded_at' => $now,
+                    ];
+                }
+            }
+
+            // ── ALPCA milestone badges ─────────────────────────────────────
+            foreach ($alpcaBadges as $badge) {
+                if (isset($alreadyEarned[$badge->id])) {
+                    continue;
+                }
+                if ($alpcaPlateCount >= $badge->threshold) {
                     $toInsert[] = [
                         'user_id'    => $user->id,
                         'badge_id'   => $badge->id,

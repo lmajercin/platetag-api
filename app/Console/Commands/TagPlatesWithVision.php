@@ -37,9 +37,16 @@ class TagPlatesWithVision extends Command
                   ->where(fn ($q) => $q->whereNull('tags')->orWhere('tags', ''));
 
             if (! $this->option('force')) {
-                // Skip plates already processed by this tagger
-                $query->where(fn ($q) => $q->whereNull('ai_detail')->orWhere('ai_detail', ''));
+                // Skip plates already sitting in the Filament review queue (draft, not yet approved).
+                // Plates cleared back into the queue (empty detail/tags, ai_reviewed=true) stay eligible.
+                $query->where(function ($q) {
+                    $q->where(fn ($q2) => $q2->whereNull('ai_detail')->orWhere('ai_detail', ''))
+                      ->orWhere('ai_reviewed', true);
+                });
             }
+
+            // Always process lowest id first so re-queued plates are picked up before newer work.
+            $query->orderBy('id');
 
             if ($this->option('limit') > 0) {
                 $query->limit((int) $this->option('limit'));

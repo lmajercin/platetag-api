@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\ExpirePromoAccess;
+use App\Console\Commands\SnapshotGeoUsage;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -57,10 +58,10 @@ return Application::configure(basePath: dirname(__DIR__))
         });
         // Catch the RouteNotFoundException thrown when Authenticate middleware tries
         // route('login') before the AuthenticationException propagates.
+        // B-26: removed the api/ path guard — all paths return 401 JSON so bots
+        // hitting non-API routes do not log spurious 500 errors.
         $exceptions->render(function (\Symfony\Component\Routing\Exception\RouteNotFoundException $e, Request $request) {
-            if (str_starts_with($request->path(), 'api/')) {
-                return response()->json(['message' => 'Unauthenticated.'], 401);
-            }
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         });
     })
     ->booted(function () {
@@ -86,5 +87,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Runs daily at 02:00 server time. Only touches users with promo_expires_at in the past
         // and no active IAP purchase — paid users are never affected.
         $schedule->command(ExpirePromoAccess::class)->dailyAt('02:00');
+        // Daily geo attachment rates for Discovery Insights charts (runs after promo expiry).
+        $schedule->command(SnapshotGeoUsage::class)->dailyAt('02:15');
     })
     ->create();

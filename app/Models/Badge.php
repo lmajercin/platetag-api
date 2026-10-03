@@ -48,4 +48,9 @@ class Badge extends Model
     {
         return $this->type === 'collection';
     }
+
+    public function isAlpca(): bool
+    {
+        return $this->type === 'alpca';
+    }
 }

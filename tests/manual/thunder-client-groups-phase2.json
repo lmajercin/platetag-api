@@ -1,0 +1,366 @@
+{
+  "clientName": "Thunder Client",
+  "collectionName": "PlateTag Groups - Phase 2 Testing",
+  "collectionId": "groups-phase2",
+  "dateExported": "2026-10-02",
+  "version": "1.0",
+  "folders": [
+    {
+      "name": "1. Group Management",
+      "requests": []
+    },
+    {
+      "name": "2. Invites",
+      "requests": []
+    },
+    {
+      "name": "3. Leaderboards",
+      "requests": []
+    },
+    {
+      "name": "4. Games",
+      "requests": []
+    }
+  ],
+  "requests": [
+    {
+      "name": "01 - List My Groups",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/groups",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "02 - Create Group",
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/groups",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"name\": \"Thunder Test Group\",\n  \"is_public\": true,\n  \"member_cap\": 15,\n  \"game_mode\": \"lifetime\"\n}",
+        "form": []
+      },
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "03 - Get Group Details",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "04 - Update Group",
+      "method": "PUT",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"name\": \"Thunder Test Group - UPDATED\",\n  \"member_cap\": 20\n}",
+        "form": []
+      },
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "05 - List Group Members",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/members",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "06 - Transfer Leadership",
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/transfer-leadership",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"new_leader_id\": 2\n}",
+        "form": []
+      },
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "07 - Remove Member",
+      "method": "DELETE",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/members/2",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "08 - Leave Group",
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/leave",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "09 - Delete Group",
+      "method": "DELETE",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "1. Group Management"
+    },
+    {
+      "name": "10 - Generate Invite Token",
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/invite/generate",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"max_uses\": null,\n  \"days_valid\": 30\n}",
+        "form": []
+      },
+      "tests": [],
+      "folder": "2. Invites"
+    },
+    {
+      "name": "11 - Preview Invite",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/invite/preview?token=YOUR_TOKEN_HERE",
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "2. Invites"
+    },
+    {
+      "name": "12 - Join Group via Invite",
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/invite/join",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"token\": \"YOUR_TOKEN_HERE\"\n}",
+        "form": []
+      },
+      "tests": [],
+      "folder": "2. Invites"
+    },
+    {
+      "name": "13 - Group Leaderboard (Lifetime)",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/leaderboard?mode=lifetime",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "3. Leaderboards"
+    },
+    {
+      "name": "14 - Member Plates List",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/members/1/plates",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "3. Leaderboards"
+    },
+    {
+      "name": "15 - State Map",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/state-map",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "3. Leaderboards"
+    },
+    {
+      "name": "16 - List Games",
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/games",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "tests": [],
+      "folder": "4. Games"
+    },
+    {
+      "name": "17 - Create Game",
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/groups/2/games",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer 1|platetag_W9Q87mRgfjiGSnv8IulgUxWbZlqS30rkos5RvUmBd3a8cc7d"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"game_type\": \"50_states\",\n  \"country\": \"US\",\n  \"target_count\": 50\n}",
+        "form": []
+      },
+      "tests": [],
+      "folder": "4. Games"
+    }
+  ]
+}

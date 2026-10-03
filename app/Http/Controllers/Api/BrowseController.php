@@ -160,6 +160,31 @@ class BrowseController extends Controller
     }
 
     /**
+     * Global discovery statistics — total discoveries across all users.
+     * GET /api/v1/plates/global-stats
+     * Public endpoint (no auth required), cached 5 min.
+     */
+    public function globalStats(): JsonResponse
+    {
+        $stats = \Illuminate\Support\Facades\Cache::remember('global_discovery_stats', 300, function () {
+            $total = DB::table('user_discovered_plates')->count();
+            $today = DB::table('user_discovered_plates')
+                ->whereDate('discovered_at', today())
+                ->count();
+            $discoverers = DB::table('user_discovered_plates')
+                ->distinct('user_id')
+                ->count('user_id');
+            return [
+                'total_discoveries'  => (int) $total,
+                'today_discoveries'  => (int) $today,
+                'total_discoverers'  => (int) $discoverers,
+            ];
+        });
+
+        return response()->json($stats);
+    }
+
+    /**
      * List all categories.
      * GET /api/v1/categories
      */

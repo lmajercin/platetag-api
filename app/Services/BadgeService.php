@@ -22,15 +22,54 @@ class BadgeService
      * beta scale. Flag for queued dispatch (CheckBadgeAwards job) before public launch
      * if latency becomes a concern on A2 Hosting shared hosting.
      */
-    public function checkAfterDiscovery(User $user, Plate $plate): Collection
+    public function checkAfterDiscovery(User $user, Plate $plate, bool $isFirstDiscovery = true): Collection
     {
         $newlyAwarded = collect();
 
-        $newlyAwarded = $newlyAwarded->merge($this->checkGeographicBadges($user, $plate));
-        $newlyAwarded = $newlyAwarded->merge($this->checkMilestoneBadges($user));
-        $newlyAwarded = $newlyAwarded->merge($this->checkCollectionBadges($user, $plate));
+        if ($isFirstDiscovery) {
+            $newlyAwarded = $newlyAwarded->merge($this->checkGeographicBadges($user, $plate));
+            $newlyAwarded = $newlyAwarded->merge($this->checkMilestoneBadges($user));
+            $newlyAwarded = $newlyAwarded->merge($this->checkCollectionBadges($user, $plate));
+
+            if ($plate->is_alpca_winner) {
+                $newlyAwarded = $newlyAwarded->merge($this->checkAlpcaMilestoneBadges($user));
+            }
+        }
 
         return $newlyAwarded;
+    }
+
+    /**
+     * ALPCA popup payload for a first-time discovery of an award-winning plate.
+     * Returns null when the plate is not an ALPCA winner or not a first discovery.
+     *
+     * @return array{count: int, plate_name: string}|null
+     */
+    public function alpcaDiscoveryPayload(User $user, Plate $plate, bool $isFirstDiscovery): ?array
+    {
+        if (! $isFirstDiscovery || ! $plate->is_alpca_winner) {
+            return null;
+        }
+
+        $count = $this->countDistinctAlpcaPlates($user->id);
+
+        return [
+            'count'      => $count,
+            'plate_name' => $plate->name,
+        ];
+    }
+
+    /**
+     * Distinct ALPCA Best Plate Award winners the user has first-discovered.
+     */
+    public function countDistinctAlpcaPlates(int $userId): int
+    {
+        return (int) DB::table('user_discovered_plates as udp')
+            ->join('plates as p', 'p.id', '=', 'udp.plate_id')
+            ->where('udp.user_id', $userId)
+            ->where('udp.is_first_discovery', true)
+            ->where('p.is_alpca_winner', true)
+            ->count(DB::raw('DISTINCT udp.plate_id'));
     }
 
     // ── Geographic badges ────────────────────────────────────────────────────
@@ -198,6 +237,31 @@ class BadgeService
                 $q->select('badge_id')
                   ->from('user_badges')
                   ->where('user_id', $user->id);
+            })
+            ->pluck('id')
+            ->all();
+
+        if (empty($eligibleIds)) {
+            return collect();
+        }
+
+        return $this->awardBadges($user->id, $eligibleIds);
+    }
+
+    // ── ALPCA milestone badges (5 / 10 unique award winners) ─────────────────
+
+    private function checkAlpcaMilestoneBadges(User $user): Collection
+    {
+        $totalAlpca = $this->countDistinctAlpcaPlates($user->id);
+
+        $eligibleIds = DB::table('badges')
+            ->where('type', 'alpca')
+            ->where('is_active', true)
+            ->where('threshold', '<=', $totalAlpca)
+            ->whereNotIn('id', function ($q) use ($user) {
+                $q->select('badge_id')
+                    ->from('user_badges')
+                    ->where('user_id', $user->id);
             })
             ->pluck('id')
             ->all();

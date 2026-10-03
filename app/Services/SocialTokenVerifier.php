@@ -37,17 +37,24 @@ class SocialTokenVerifier
     /**
      * Verify a Google token.
      *
-     * Only ID tokens (JWT, starting with "eyJ") are accepted.
-     * All builds since v1.2.0 / Build 31 use expo-auth-session which always
-     * returns an ID token. Access token support has been retired.
+     * Prefers ID tokens (JWT, starting with "eyJ") verified via tokeninfo endpoint.
+     * Falls back to access token verification via the userinfo endpoint if the app
+     * sends an access token (observed in expo-auth-session on some SDK/OS combinations
+     * where authentication.idToken is null and accessToken is used as fallback).
      */
     private function verifyGoogle(string $token): ?array
     {
-        if (! str_starts_with($token, 'eyJ')) {
-            return null;
+        if (str_starts_with($token, 'eyJ')) {
+            return $this->verifyGoogleIdToken($token);
         }
 
-        return $this->verifyGoogleIdToken($token);
+        // Token is not a JWT — likely an access token from the OAuth implicit flow.
+        // Log for diagnostic visibility, then attempt userinfo verification.
+        Log::warning('Google: received access token instead of ID token — verifying via userinfo', [
+            'token_prefix' => substr($token, 0, 6),
+        ]);
+
+        return $this->verifyGoogleAccessToken($token);
     }
 
     /**
@@ -59,12 +66,17 @@ class SocialTokenVerifier
             ->get('https://oauth2.googleapis.com/tokeninfo', ['id_token' => $idToken]);
 
         if (! $response->successful()) {
+            Log::warning('Google ID token: tokeninfo returned non-2xx', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 200),
+            ]);
             return null;
         }
 
         $data = $response->json();
 
         if (empty($data['sub'])) {
+            Log::warning('Google ID token: tokeninfo response missing sub claim', ['data_keys' => array_keys($data)]);
             return null;
         }
 
@@ -78,6 +90,44 @@ class SocialTokenVerifier
 
         if (empty($data['aud']) || ! in_array($data['aud'], $allowedAudiences, true)) {
             Log::error('Google ID token audience mismatch', ['aud' => $data['aud'] ?? 'missing']);
+            return null;
+        }
+
+        return [
+            'id'             => $data['sub'],
+            'email'          => $data['email'] ?? null,
+            'email_verified' => filter_var($data['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'name'           => $data['name'] ?? null,
+        ];
+    }
+
+    /**
+     * Verify a Google access token via the userinfo endpoint.
+     * Used as fallback when expo-auth-session returns an access token instead of
+     * an ID token (observed on some SDK/OS versions).
+     *
+     * Note: access tokens have no audience claim — we trust Google's server-side
+     * validation that the token is valid and belongs to a real Google account.
+     */
+    private function verifyGoogleAccessToken(string $accessToken): ?array
+    {
+        $response = Http::timeout(10)
+            ->get('https://www.googleapis.com/oauth2/v3/userinfo', [
+                'access_token' => $accessToken,
+            ]);
+
+        if (! $response->successful()) {
+            Log::warning('Google access token: userinfo returned non-2xx', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 200),
+            ]);
+            return null;
+        }
+
+        $data = $response->json();
+
+        if (empty($data['sub'])) {
+            Log::warning('Google access token: userinfo response missing sub claim');
             return null;
         }
 

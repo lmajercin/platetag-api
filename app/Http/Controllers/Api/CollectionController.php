@@ -417,6 +417,9 @@ class CollectionController extends Controller
             ->where('is_first_discovery', true)
             ->count();
 
+        // Distinct ALPCA award-winning plates first-discovered by this user.
+        $alpcaPlateCount = (new \App\Services\BadgeService())->countDistinctAlpcaPlates($user->id);
+
         // Required plates per collection badge (keyed by badge_id).
         $collectionBadgeIds = $badges->where('type', 'collection')->pluck('id');
         $badgePlates = DB::table('badge_plates')
@@ -434,7 +437,7 @@ class CollectionController extends Controller
             ->all();
 
         $result = $badges->map(function ($badge) use (
-            $earnedMap, $badgeRegions, $discoveredRegionSet, $totalPlates,
+            $earnedMap, $badgeRegions, $discoveredRegionSet, $totalPlates, $alpcaPlateCount,
             $badgePlates, $collectedPlateIds
         ) {
             $earned     = isset($earnedMap[$badge->id]);
@@ -466,6 +469,13 @@ class CollectionController extends Controller
                 ];
                 $regionNames = [];
                 $plateNames  = $required->pluck('plate_name')->sort()->values()->all();
+            } elseif ($badge->type === 'alpca') {
+                $progress = [
+                    'current'   => $alpcaPlateCount,
+                    'threshold' => $badge->threshold,
+                ];
+                $regionNames = [];
+                $plateNames  = [];
             } else {
                 $progress = [
                     'current'   => $totalPlates,

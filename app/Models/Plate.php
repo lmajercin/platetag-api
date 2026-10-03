@@ -15,7 +15,7 @@ class Plate extends Model
         'name', 'slug', 'series_id', 'category_id', 'vehicle_class',
         'header_override', 'footer_override', 'detail', 'tags', 'serial_format',
         'image_filename', 'updates_complete', 'is_active',
-        'is_primary', 'is_secondary',
+        'is_primary', 'is_secondary', 'is_alpca_winner',
         'ai_detail', 'ai_tags', 'ai_reviewed',
     ];
 
@@ -24,6 +24,7 @@ class Plate extends Model
         'updates_complete' => 'boolean',
         'is_primary'       => 'boolean',
         'is_secondary'     => 'boolean',
+        'is_alpca_winner'  => 'boolean',
         'ai_reviewed'      => 'boolean',
     ];
 

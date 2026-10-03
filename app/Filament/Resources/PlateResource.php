@@ -171,6 +171,11 @@ class PlateResource extends Resource
                     ->label('Secondary (appears below primary, alphabetically)')
                     ->inline(false)
                     ->default(false),
+                Forms\Components\Toggle::make('is_alpca_winner')
+                    ->label('ALPCA Best Plate Award Winner')
+                    ->helperText('Awarded by ALPCA for best-looking / best-designed plate that year. Triggers discovery alerts in the app.')
+                    ->inline(false)
+                    ->default(false),
             ])->columns(2),
         ]);
     }
@@ -199,6 +204,11 @@ class PlateResource extends Resource
                 Tables\Columns\TextColumn::make('category.name')->label('Category')->sortable()->toggleable(),
                 Tables\Columns\TextColumn::make('vehicle_class')->label('Class')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('updates_complete')->boolean()->label('Done')->sortable(),
+                Tables\Columns\IconColumn::make('is_alpca_winner')
+                    ->label('ALPCA')
+                    ->boolean()
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_active')->boolean()->sortable(),
                 Tables\Columns\IconColumn::make('is_primary')
                     ->label('Pri')

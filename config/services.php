@@ -53,12 +53,14 @@ return [
         'client_secret' => env('FACEBOOK_APP_SECRET'),
     ],
 
-    // RevenueCat — purchase verification.
-    // secret_key: server-to-server key from RevenueCat dashboard (Settings → API Keys → Secret keys).
-    // NEVER use the public/app key here — that belongs in the mobile app only.
+    // RevenueCat — purchase verification (V2 API).
+    // secret_key: V2 secret key from RevenueCat dashboard (Settings → API Keys → Secret keys).
+    // project_id: found in RevenueCat → Project Settings (e.g. proj206dfbae). Required for V2 API.
+    // NEVER use the public/app SDK key here — that belongs in the mobile app only.
     // entitlement_id: the entitlement identifier configured in RevenueCat dashboard.
     'revenuecat' => [
         'secret_key'     => env('REVENUECAT_SECRET_KEY'),
+        'project_id'     => env('REVENUECAT_PROJECT_ID'),
         'entitlement_id' => env('REVENUECAT_ENTITLEMENT_ID', 'full_access'),
         // Comma-separated list of valid product IDs. Any product_id not in this list is rejected.
         // Must match exactly what is configured in App Store Connect + Google Play.

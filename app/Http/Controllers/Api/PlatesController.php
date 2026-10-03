@@ -262,14 +262,47 @@ class PlatesController extends Controller
         $rowId   = $result['rowId'];
         $isFirst = $result['isFirst'];
 
+        // ========== Build 87a: Multi-group discovery attribution ==========
+        // Attribute this discovery to ALL groups the user is currently a member of
+        $groupIds = DB::table('group_members')
+            ->where('user_id', $user->id)
+            ->pluck('group_id');
+        
+        if ($groupIds->isNotEmpty()) {
+            $groupDiscoveryData = $groupIds->map(function ($groupId) use ($user, $plate, $discoveredAt) {
+                return [
+                    'group_id' => $groupId,
+                    'user_id' => $user->id,
+                    'plate_id' => $plate->id,
+                    'discovered_at' => $discoveredAt,
+                ];
+            })->toArray();
+            
+            // Insert all group discoveries (ignore duplicates)
+            foreach ($groupDiscoveryData as $data) {
+                try {
+                    DB::table('group_discoveries')->insert($data);
+                } catch (\Illuminate\Database\QueryException $e) {
+                    // Unique constraint violation - user already has this plate in this group
+                    // This is expected if they previously discovered this plate while in the group
+                    if ($e->getCode() !== '23000') {
+                        throw $e; // Re-throw if it's not a duplicate key error
+                    }
+                }
+            }
+        }
+        // ========== End Build 87a group attribution ==========
+
         // Badge check runs outside the transaction (read-heavy, non-critical for atomicity).
         $badgeService = new BadgeService();
-        $newBadges    = $badgeService->checkAfterDiscovery($user, $plate);
+        $newBadges    = $badgeService->checkAfterDiscovery($user, $plate, $isFirst);
         $badgesEarned = $newBadges->map(fn($b) => [
             'id'   => $b->id,
             'name' => $b->name,
             'icon' => $b->icon,
         ])->values();
+
+        $alpcaDiscovery = $badgeService->alpcaDiscoveryPayload($user, $plate, $isFirst);
 
         return response()->json([
             'id'                 => $rowId,
@@ -278,6 +311,7 @@ class PlatesController extends Controller
             'is_first_discovery' => $isFirst,
             'discovered_at'      => $discoveredAt->toISOString(),
             'badges_earned'      => $badgesEarned,
+            'alpca_discovery'    => $alpcaDiscovery,
         ], 201);
     }
 }
