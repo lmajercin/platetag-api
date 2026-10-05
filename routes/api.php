@@ -12,8 +12,6 @@ use App\Http\Controllers\Api\PlateRequestController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\SessionController;
-use App\Http\Controllers\Api\SessionShareController;
-use App\Http\Controllers\Api\PlateShareController;
 use App\Http\Controllers\Api\SocialAuthController;
 
 Route::prefix('v1')->group(function () {
@@ -54,30 +52,14 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/email-change/confirm',  [AuthController::class, 'confirmEmailChange']);
     });
 
-    // Session share — public preview (no auth), tight rate limit (30/min per IP)
-    Route::middleware('throttle:auth')->prefix('share')->group(function () {
-        Route::get('session/{token}',        [SessionShareController::class, 'preview']);
-        Route::get('plates/{token}',         [PlateShareController::class,  'preview']);
-    });
-
-    // Session share — claim requires auth (30/min per user)
-    Route::middleware(['auth:sanctum', 'throttle:auth'])->prefix('share')->group(function () {
-        Route::post('session/{token}/claim', [SessionShareController::class, 'claim']);
-        Route::post('plates/{token}/claim',  [PlateShareController::class,  'claim']);
-    });
-
     // Public browse — general rate limit (60/min per IP)
     Route::middleware('throttle:api')->group(function () {
         Route::get('plates',               [PlatesController::class, 'index']);
-        Route::get('plates/global-stats',  [BrowseController::class, 'globalStats']); // must precede plates/{id}
         Route::get('plates/{id}',          [PlatesController::class, 'show']);
         Route::get('regions',              [BrowseController::class, 'regions']);
         Route::get('series',               [BrowseController::class, 'series']);
         Route::get('categories',           [BrowseController::class, 'categories']);
         Route::get('browse/country-summary', [BrowseController::class, 'countrySummary']);
-        
-        // Group invite preview (public - no auth required)
-        Route::get('groups/join/{token}',  [\App\Http\Controllers\Api\GroupInviteController::class, 'preview']);
     });
 
     // Community submissions — auth + verified email required, rate-limited (5/min per IP)
@@ -126,35 +108,5 @@ Route::prefix('v1')->group(function () {
         Route::patch('auth/sessions/{id}',          [SessionController::class, 'update']);
         Route::delete('auth/sessions/{id}',         [SessionController::class, 'destroy']);
         Route::get('auth/sessions/{id}/export',     [SessionController::class, 'export']);
-        Route::post('auth/sessions/{id}/share',     [SessionShareController::class, 'create']);
-        Route::post('auth/plates/share',             [PlateShareController::class,  'create']);
-
-        // ========== Groups & Games (Build 87a) ==========
-        
-        // Group CRUD
-        Route::get('auth/groups',                          [\App\Http\Controllers\Api\GroupController::class, 'index']);
-        Route::get('auth/groups/{id}',                     [\App\Http\Controllers\Api\GroupController::class, 'show']);
-        Route::post('auth/groups',                         [\App\Http\Controllers\Api\GroupController::class, 'store']);
-        Route::patch('auth/groups/{id}',                   [\App\Http\Controllers\Api\GroupController::class, 'update']);
-        Route::delete('auth/groups/{id}',                  [\App\Http\Controllers\Api\GroupController::class, 'destroy']);
-        Route::post('auth/groups/{id}/leave',              [\App\Http\Controllers\Api\GroupController::class, 'leave']);
-        Route::patch('auth/groups/{id}/leader',            [\App\Http\Controllers\Api\GroupController::class, 'transferLeadership']);
-        Route::delete('auth/groups/{id}/members/{userId}', [\App\Http\Controllers\Api\GroupController::class, 'removeMember']);
-        Route::get('auth/groups/{id}/members',             [\App\Http\Controllers\Api\GroupController::class, 'members']);
-        
-        // Group invites (leader-only)
-        Route::post('auth/groups/{id}/invite',             [\App\Http\Controllers\Api\GroupInviteController::class, 'generate']);
-        Route::post('groups/join/{token}',                 [\App\Http\Controllers\Api\GroupInviteController::class, 'join']);
-        
-        // Leaderboards
-        Route::get('auth/groups/{id}/leaderboard',                [\App\Http\Controllers\Api\GroupLeaderboardController::class, 'index']);
-        Route::get('auth/groups/{id}/members/{userId}/plates',    [\App\Http\Controllers\Api\GroupLeaderboardController::class, 'memberPlates']);
-        Route::get('auth/groups/{id}/state-map',                  [\App\Http\Controllers\Api\GroupLeaderboardController::class, 'stateMap']);
-        
-        // Games
-        Route::get('auth/groups/{id}/games',                      [\App\Http\Controllers\Api\GameController::class, 'index']);
-        Route::get('auth/groups/{id}/games/{gameId}',             [\App\Http\Controllers\Api\GameController::class, 'show']);
-        Route::post('auth/groups/{id}/games',                     [\App\Http\Controllers\Api\GameController::class, 'store']);
-        Route::patch('auth/groups/{id}/games/{gameId}',           [\App\Http\Controllers\Api\GameController::class, 'update']);
     });
 });
