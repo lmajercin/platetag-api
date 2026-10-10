@@ -9,6 +9,7 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -75,5 +76,39 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function promoRedemptions(): HasMany
     {
         return $this->hasMany(PromoCodeRedemption::class);
+    }
+
+    // ─── Group Relationships (Build 87a) ───────────────────────────────────────
+
+    /** Groups where this user is the leader. */
+    public function ledGroups(): HasMany
+    {
+        return $this->hasMany(Group::class, 'leader_id');
+    }
+
+    /** Raw pivot rows in group_members. */
+    public function groupMemberships(): HasMany
+    {
+        return $this->hasMany(GroupMember::class);
+    }
+
+    /** Groups the user belongs to (through group_members pivot). */
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(Group::class, 'group_members')
+            ->withPivot('color', 'joined_at')
+            ->withTimestamps();
+    }
+
+    /** Attribution rows in group_discoveries. */
+    public function groupDiscoveries(): HasMany
+    {
+        return $this->hasMany(GroupDiscovery::class);
+    }
+
+    /** Games this user won. */
+    public function wonGames(): HasMany
+    {
+        return $this->hasMany(Game::class, 'winner_id');
     }
 }

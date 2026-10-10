@@ -6,6 +6,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BrowseController;
 use App\Http\Controllers\Api\BugReportController;
 use App\Http\Controllers\Api\CollectionController;
+use App\Http\Controllers\Api\GameController;
+use App\Http\Controllers\Api\GroupController;
+use App\Http\Controllers\Api\GroupInviteController;
+use App\Http\Controllers\Api\GroupLeaderboardController;
 use App\Http\Controllers\Api\OfflineController;
 use App\Http\Controllers\Api\PlatesController;
 use App\Http\Controllers\Api\PlateRequestController;
@@ -58,6 +62,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:auth')->prefix('share')->group(function () {
         Route::get('session/{token}',        [SessionShareController::class, 'preview']);
         Route::get('plates/{token}',         [PlateShareController::class,  'preview']);
+    });
+
+    // Group invite — public preview (no auth), tight rate limit (30/min per IP)
+    Route::middleware('throttle:auth')->group(function () {
+        Route::get('groups/invite/{token}', [GroupInviteController::class, 'preview']);
     });
 
     // Session share — claim requires auth (30/min per user)
@@ -126,5 +135,32 @@ Route::prefix('v1')->group(function () {
         Route::get('auth/sessions/{id}/export',     [SessionController::class, 'export']);
         Route::post('auth/sessions/{id}/share',     [SessionShareController::class, 'create']);
         Route::post('auth/plates/share',             [PlateShareController::class,  'create']);
+
+        // ── Groups (Build 87a) ───────────────────────────────────────────────
+        // Groups CRUD
+        Route::get('groups',                         [GroupController::class, 'index']);
+        Route::post('groups',                        [GroupController::class, 'store']);
+        Route::get('groups/{id}',                    [GroupController::class, 'show']);
+        Route::patch('groups/{id}',                  [GroupController::class, 'update']);
+        Route::delete('groups/{id}',                 [GroupController::class, 'destroy']);
+        Route::post('groups/{id}/leave',             [GroupController::class, 'leave']);
+        Route::post('groups/{id}/transfer',          [GroupController::class, 'transferLeadership']);
+        Route::delete('groups/{id}/members/{memberId}', [GroupController::class, 'removeMember']);
+        Route::get('groups/{id}/members',            [GroupController::class, 'members']);
+
+        // Invite tokens
+        Route::post('groups/{id}/invite',            [GroupInviteController::class, 'generate']);
+        Route::post('groups/invite/{token}/join',    [GroupInviteController::class, 'join']);
+
+        // Leaderboard + state map
+        Route::get('groups/{id}/leaderboard',        [GroupLeaderboardController::class, 'index']);
+        Route::get('groups/{id}/members/{userId}/plates', [GroupLeaderboardController::class, 'memberPlates']);
+        Route::get('groups/{id}/state-map',          [GroupLeaderboardController::class, 'stateMap']);
+
+        // Games
+        Route::get('groups/{groupId}/games',         [GameController::class, 'index']);
+        Route::post('groups/{groupId}/games',        [GameController::class, 'store']);
+        Route::get('groups/{groupId}/games/{id}',    [GameController::class, 'show']);
+        Route::patch('groups/{groupId}/games/{id}',  [GameController::class, 'update']);
     });
 });

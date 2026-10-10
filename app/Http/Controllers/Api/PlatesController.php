@@ -262,6 +262,29 @@ class PlatesController extends Controller
         $rowId   = $result['rowId'];
         $isFirst = $result['isFirst'];
 
+        // ── Multi-group attribution (Build 87a) ──────────────────────────────
+        // Every group the user belongs to gets credit for this discovery.
+        // insertOrIgnore handles the unique(group_id, user_id, plate_id) constraint
+        // gracefully — safe to call even if the user somehow already has the plate
+        // in a group (e.g. admin edge case). Never blocks the discovery response.
+        $userGroupIds = DB::table('group_members')
+            ->where('user_id', $user->id)
+            ->pluck('group_id');
+
+        if ($userGroupIds->isNotEmpty()) {
+            $groupRows = $userGroupIds->map(fn($groupId) => [
+                'group_id'      => $groupId,
+                'user_id'       => $user->id,
+                'plate_id'      => $plate->id,
+                'discovered_at' => $discoveredAt,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ])->toArray();
+
+            DB::table('group_discoveries')->insertOrIgnore($groupRows);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         // Badge check runs outside the transaction (read-heavy, non-critical for atomicity).
         $badgeService = new BadgeService();
         $newBadges    = $badgeService->checkAfterDiscovery($user, $plate);
