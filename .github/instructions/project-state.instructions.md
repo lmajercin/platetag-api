@@ -13,13 +13,14 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 - `plates_react` is a retired legacy project. **OFF LIMITS.** Do not read from, write to, or reference it.
 - `plates_react/tools/prod_sync.py` — **BANNED.** Wiped production database on May 9, 2026.
 
-## Current State (as of 2026-10-09)
+## Current State (as of 2026-10-12)
 
 - Production DB: plates=10,380 | series=261 | regions=100 | categories=17
 - Last content sync: 2026-10-07
 - **Vision tagging backfill:** ✅ **CONCLUDED 2026-07-22**
-- Mobile app: **Build 87a SUBMITTED** — iOS/Android v1.6.0 (87). iOS Waiting for Review, Android In Review. Submitted 2026-10-09.
-- **Groups API:** ✅ Local WAMP only — NOT yet on production. Must deploy before stores publish Build 87a. Tables: `groups`, `group_members`, `group_discoveries`, `games`. Controllers: `GroupController`, `GroupInviteController`, `GroupLeaderboardController`, `GameController`. Multi-group attribution added to `PlatesController::discover()`.
+- Mobile app: **Build 87a LIVE both stores** — iOS/Android v1.6.0 (87). Android Published 2026-10-10, iOS Ready for Distribution 2026-10-12. Smoke tested on device — PASS.
+- **Groups API:** ✅ **LIVE on production** (deployed 2026-10-12). Tables: `groups`, `group_members`, `group_discoveries`, `games` — all 4 migrations ran on Hosting.com server. Controllers: `GroupController`, `GroupInviteController`, `GroupLeaderboardController`, `GameController`. Multi-group attribution added to `PlatesController::discover()`.
+- **GroupLeaderboardController bug fixed 2026-10-12:** `plates.region_id` does not exist — correct join is `plates → series → regions` (via `series.region_id`). Fixed in both `stateMap()` and `index()` methods. Deployed to production same session.
 - **Filament Analytics:** ✅ **LIVE on production** 2026-08-21 — Discovery Insights, Discovery Map, Usage Reports; `geo_usage_snapshots` migrated + 147-day backfill; schedule `analytics:snapshot-geo` 02:15.
 - **Backuply:** ✅ Automated Google Drive backups restored 2026-07-14.
 - **Web app:** ✅ V1 LIVE at https://platetag.app. Full session (W-1+W-2+W-3) of web updates deployed 2026-09-07: Road Trips rename, OSM tiles, Summer theme (default), full-page map, global counter, share buttons on Road Trips + Collection, web claim flow on both share pages. See `platetag-web/docs/WEB_STATUS.md` for full detail.
@@ -239,7 +240,8 @@ Before running `sync_to_prod.ps1`, the agent must run a count comparison of all 
   cd C:\wamp64\www\platetag-api
   php artisan migrate
   ```
-- On A2 production: use cPanel Terminal → `cd ~/platetag-api && php artisan migrate`
+- On Hosting.com production: use Hosting.com SSH Terminal (cPanel) → `cd ~/platetag-api && php artisan migrate`
+  Note: "A2 Hosting" is being rebranded to "Hosting.com". Use "Hosting.com" in all new references.
 - Never run `migrate:fresh` or `migrate:reset` on production — destructive
 - Always backup production DB before running migrations on production
 
