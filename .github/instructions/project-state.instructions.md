@@ -15,8 +15,8 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 
 ## Current State (as of 2026-10-12)
 
-- Production DB: plates=10,380 | series=261 | regions=100 | categories=17
-- Last content sync: 2026-10-07
+- Production DB: plates=10,381 | series=261 | regions=100 | categories=17
+- Last content sync: 2026-10-12 (ID 10898 IN - Electronic Plate added)
 - **Vision tagging backfill:** ✅ **CONCLUDED 2026-07-22**
 - Mobile app: **Build 87a LIVE both stores** — iOS/Android v1.6.0 (87). Android Published 2026-10-10, iOS Ready for Distribution 2026-10-12. Smoke tested on device — PASS.
 - **Groups API:** ✅ **LIVE on production** (deployed 2026-10-12). Tables: `groups`, `group_members`, `group_discoveries`, `games` — all 4 migrations ran on Hosting.com server. Controllers: `GroupController`, `GroupInviteController`, `GroupLeaderboardController`, `GameController`. Multi-group attribution added to `PlatesController::discover()`.
