@@ -37,11 +37,13 @@ class GroupLeaderboardController extends Controller
                     ->where('user_id', $member->user_id)
                     ->count();
 
-                // Distinct states/provinces covered for this group's country
+                // Distinct states/provinces covered for this group's country.
+                // plates → series → regions (plates has no direct region_id).
                 $statePoints = GroupDiscovery::where('group_discoveries.group_id', $id)
                     ->where('group_discoveries.user_id', $member->user_id)
-                    ->join('plates', 'plates.id', '=', 'group_discoveries.plate_id')
-                    ->join('regions', 'regions.id', '=', 'plates.region_id')
+                    ->join('plates',   'plates.id',   '=', 'group_discoveries.plate_id')
+                    ->join('series',   'series.id',   '=', 'plates.series_id')
+                    ->join('regions',  'regions.id',  '=', 'series.region_id')
                     ->where('regions.country_code', $group->country)
                     ->distinct('regions.code')
                     ->count('regions.code');
@@ -115,10 +117,12 @@ class GroupLeaderboardController extends Controller
 
         // Which users have a plate from each region (via group_discoveries → plates → region)
         $stateMap = $regions->map(function ($region) use ($id) {
+            // plates → series → regions (plates has no direct region_id).
             $discovererIds = DB::table('group_discoveries')
-                ->join('plates', 'plates.id', '=', 'group_discoveries.plate_id')
+                ->join('plates',  'plates.id',  '=', 'group_discoveries.plate_id')
+                ->join('series',  'series.id',  '=', 'plates.series_id')
                 ->where('group_discoveries.group_id', $id)
-                ->where('plates.region_id', $region->id)
+                ->where('series.region_id', $region->id)
                 ->distinct()
                 ->pluck('group_discoveries.user_id');
 
