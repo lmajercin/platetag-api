@@ -13,7 +13,11 @@ class Game extends Model
         'country',
         'status',
         'winner_id',
+        'winner_plates_user_id',
+        'winner_states_user_id',
         'target_count',
+        'start_date',
+        'end_date',
         'started_at',
         'completed_at',
     ];
@@ -21,6 +25,8 @@ class Game extends Model
     protected function casts(): array
     {
         return [
+            'start_date'   => 'date',
+            'end_date'     => 'date',
             'started_at'   => 'datetime',
             'completed_at' => 'datetime',
         ];
@@ -33,9 +39,22 @@ class Game extends Model
         return $this->belongsTo(Group::class);
     }
 
+    /** Winner for 50 States games */
     public function winner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'winner_id');
+    }
+
+    /** Road Rally: most unique plates winner */
+    public function winnerPlates(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'winner_plates_user_id');
+    }
+
+    /** Road Rally: most states covered winner */
+    public function winnerStates(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'winner_states_user_id');
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -48,6 +67,11 @@ class Game extends Model
     public function isFiftyStates(): bool
     {
         return $this->type === '50_states';
+    }
+
+    public function isRoadRally(): bool
+    {
+        return $this->type === 'road_rally';
     }
 
     public function complete(?int $winnerId = null): void

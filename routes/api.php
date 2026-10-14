@@ -157,10 +157,15 @@ Route::prefix('v1')->group(function () {
         Route::get('groups/{id}/members/{userId}/plates', [GroupLeaderboardController::class, 'memberPlates']);
         Route::get('groups/{id}/state-map',          [GroupLeaderboardController::class, 'stateMap']);
 
-        // Games
+        // Games — read + edit (standard API rate limit)
         Route::get('groups/{groupId}/games',         [GameController::class, 'index']);
-        Route::post('groups/{groupId}/games',        [GameController::class, 'store']);
         Route::get('groups/{groupId}/games/{id}',    [GameController::class, 'show']);
         Route::patch('groups/{groupId}/games/{id}',  [GameController::class, 'update']);
+
+        // Games — create + finalize (stricter rate limit per @Audit GO 2026-10-13)
+        Route::middleware('throttle:games')->group(function () {
+            Route::post('groups/{groupId}/games',                 [GameController::class, 'store']);
+            Route::post('groups/{groupId}/games/{id}/finalize',   [GameController::class, 'finalize']);
+        });
     });
 });

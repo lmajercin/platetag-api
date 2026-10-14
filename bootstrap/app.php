@@ -75,6 +75,13 @@ return Application::configure(basePath: dirname(__DIR__))
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Game creation & finalization: 5 per minute per user (@Audit condition 2026-10-13)
+        RateLimiter::for('games', function (Request $request) {
+            return $request->user()
+                ? Limit::perMinute(5)->by($request->user()->id)
+                : Limit::perMinute(5)->by($request->ip());
+        });
+
         // General API: 120 requests per minute per user or IP
         RateLimiter::for('api', function (Request $request) {
             return $request->user()
