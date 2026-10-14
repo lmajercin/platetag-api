@@ -85,7 +85,7 @@ class GroupLeaderboardController extends Controller
 
         $plates = GroupDiscovery::where('group_id', $id)
             ->where('user_id', $userId)
-            ->with('plate:id,name,image_path,region_id')
+            ->with('plate:id,name,image_filename,region_id')
             ->get()
             ->map(fn($d) => [
                 'plate'         => $d->plate,
