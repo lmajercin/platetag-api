@@ -95,7 +95,10 @@ class GroupInviteController extends Controller
         $user = $request->user();
 
         $result = DB::transaction(function () use ($user, $token) {
-            $group = Group::lockForUpdate()->findByToken($token);
+            $group = Group::where('invite_token_private', $token)
+                ->orWhere('invite_token_public', $token)
+                ->lockForUpdate()
+                ->first();
 
             if (!$group) {
                 return ['error' => 'Invalid invite link.', 'status' => 404];
