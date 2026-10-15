@@ -85,12 +85,18 @@ class GroupLeaderboardController extends Controller
 
         $plates = GroupDiscovery::where('group_id', $id)
             ->where('user_id', $userId)
-            ->with('plate:id,name,image_filename,region_id')
+            ->with('plate')
             ->get()
             ->map(fn($d) => [
-                'plate'         => $d->plate,
+                'plate' => $d->plate ? [
+                    'id'        => $d->plate->id,
+                    'name'      => $d->plate->name,
+                    'image_url' => $d->plate->image_url,
+                ] : null,
                 'discovered_at' => $d->discovered_at,
-            ]);
+            ])
+            ->filter(fn($entry) => $entry['plate'] !== null)
+            ->values();
 
         return response()->json($plates);
     }
