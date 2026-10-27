@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\ExpirePromoAccess;
+use App\Console\Commands\FinalizeRallies;
 use App\Console\Commands\SnapshotGeoUsage;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Application;
@@ -96,5 +97,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ExpirePromoAccess::class)->dailyAt('02:00');
         // Daily geo attachment rates for Discovery Insights charts (runs after promo expiry).
         $schedule->command(SnapshotGeoUsage::class)->dailyAt('02:15');
+        // Auto-finalize expired Road Rallies and push-notify members (@Audit GO 2026-10-27).
+        // Runs at midnight UTC. Sends zero notifications until users install Build 91 (expected).
+        $schedule->command(FinalizeRallies::class)->dailyAt('00:00');
     })
     ->create();

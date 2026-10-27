@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Game;
 use App\Models\Group;
 use App\Models\GroupDiscovery;
 use App\Models\GroupMember;
 use App\Models\Region;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,25 +30,52 @@ class GroupLeaderboardController extends Controller
             return response()->json(['message' => 'Not found.'], 404);
         }
 
+        // ── B-31: Rally plate-count window (@Audit GO 2026-10-27) ────────────────
+        // Optional ?game_id= parameter. When present, restrict counts to plates
+        // logged DURING the rally window only (created_at, never discovered_at —
+        // discovered_at is client-supplied and tamper-accessible).
+        // BOLA guard: game must belong to this group and be type road_rally.
+        $window = null;
+        if ($request->filled('game_id')) {
+            $game = Game::where('id', $request->integer('game_id'))
+                ->where('group_id', $id)
+                ->where('type', 'road_rally')
+                ->firstOrFail();
+
+            $start = $game->start_date
+                ? Carbon::parse($game->start_date)->startOfDay()
+                : Carbon::parse($game->started_at)->startOfDay();
+            $end   = $game->end_date
+                ? Carbon::parse($game->end_date)->endOfDay()
+                : now();
+
+            $window = [$start, $end];
+        }
+
         $members = GroupMember::where('group_id', $id)
             ->with('user:id,name')
             ->get()
-            ->map(function ($member) use ($id, $group) {
-                // Total unique plates this member attributed to the group
-                $uniquePlates = GroupDiscovery::where('group_id', $id)
-                    ->where('user_id', $member->user_id)
-                    ->count();
+            ->map(function ($member) use ($id, $group, $window) {
+                // Unique plates for this member in this group (rally-windowed if applicable)
+                $platesQuery = GroupDiscovery::where('group_id', $id)
+                    ->where('user_id', $member->user_id);
+                if ($window) {
+                    $platesQuery->whereBetween('created_at', $window);
+                }
+                $uniquePlates = $platesQuery->count();
 
                 // Distinct states/provinces covered for this group's country.
                 // plates → series → regions (plates has no direct region_id).
-                $statePoints = GroupDiscovery::where('group_discoveries.group_id', $id)
+                $stateQuery = GroupDiscovery::where('group_discoveries.group_id', $id)
                     ->where('group_discoveries.user_id', $member->user_id)
                     ->join('plates',   'plates.id',   '=', 'group_discoveries.plate_id')
                     ->join('series',   'series.id',   '=', 'plates.series_id')
                     ->join('regions',  'regions.id',  '=', 'series.region_id')
-                    ->where('regions.country_code', $group->country)
-                    ->distinct('regions.code')
-                    ->count('regions.code');
+                    ->whereIn('regions.country_code', $group->country === 'both' ? ['US', 'CA'] : [$group->country]);
+                if ($window) {
+                    $stateQuery->whereBetween('group_discoveries.created_at', $window);
+                }
+                $statePoints = $stateQuery->distinct('regions.code')->count('regions.code');
 
                 return [
                     'user_id'      => $member->user_id,
@@ -63,7 +92,7 @@ class GroupLeaderboardController extends Controller
 
         return response()->json([
             'group_id'     => $id,
-            'target_count' => $group->country === 'CA' ? 13 : 50,
+            'target_count' => match($group->country) { 'CA' => 13, 'both' => 63, default => 50 },
             'country'      => $group->country,
             'members'      => $members,
         ]);
@@ -117,7 +146,8 @@ class GroupLeaderboardController extends Controller
         }
 
         // All regions for this group's country
-        $regions = Region::where('country_code', $group->country)
+        $countryCodes = $group->country === 'both' ? ['US', 'CA'] : [$group->country];
+        $regions = Region::whereIn('country_code', $countryCodes)
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
@@ -146,7 +176,7 @@ class GroupLeaderboardController extends Controller
         return response()->json([
             'group_id'      => $id,
             'country'       => $group->country,
-            'target'        => $group->country === 'CA' ? 13 : 50,
+            'target'        => match($group->country) { 'CA' => 13, 'both' => 63, default => 50 },
             'covered_count' => $coveredCount,
             'states'        => $stateMap->values(),
         ]);

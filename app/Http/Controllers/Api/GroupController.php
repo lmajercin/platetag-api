@@ -66,7 +66,7 @@ class GroupController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'is_private'  => ['boolean'],
             'member_cap'  => ['nullable', 'integer', 'min:2', 'max:100'],
-            'country'     => ['nullable', 'in:US,CA'],
+            'country'     => ['nullable', 'in:US,CA,both'],
         ]);
 
         $user = $request->user();

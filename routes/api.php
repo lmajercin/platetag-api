@@ -4,6 +4,7 @@ use App\Http\Middleware\CheckPlayIntegrity;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BrowseController;
+use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\BugReportController;
 use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\GameController;
@@ -115,6 +116,7 @@ Route::prefix('v1')->group(function () {
     // Authenticated — general rate limit (120/min per user)
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('auth/logout',          [AuthController::class, 'logout']);
+        Route::post('auth/devices',         [DeviceController::class, 'store']);   // 5a — push token registration
         Route::get('auth/me',               [AuthController::class, 'me']);
         Route::patch('auth/me',             [AuthController::class, 'updateMe']);
         Route::get('auth/collection',                     [CollectionController::class, 'index']);

@@ -81,7 +81,7 @@ class GameController extends Controller
 
         $validated = $request->validate([
             'type'       => ['required', 'in:50_states,road_rally'],
-            'country'    => ['nullable', 'in:US,CA'],
+            'country'    => ['nullable', 'in:US,CA,both'],
             'start_date' => ['nullable', 'date', 'after_or_equal:today'],
             'end_date'   => [
                 'nullable',
@@ -168,63 +168,9 @@ class GameController extends Controller
                 return response()->json(['message' => 'This Road Rally has already been finalized.'], 409);
             }
 
-            // Determine scoring window
-            $start = $game->start_date
-                ? Carbon::parse($game->start_date)->startOfDay()
-                : Carbon::parse($game->started_at)->startOfDay();
-
-            $end = $game->end_date
-                ? Carbon::parse($game->end_date)->endOfDay()
-                : now();
-
-            // ── Winner: Most Unique Plates ─────────────────────────────────────
-            // Uses created_at (server-set) — not discovered_at (client-set, tamper risk)
-            $platesWinner = DB::table('group_discoveries')
-                ->where('group_id', $groupId)
-                ->whereBetween('created_at', [$start, $end])
-                ->select('user_id', DB::raw('COUNT(DISTINCT plate_id) as plate_count'))
-                ->groupBy('user_id')
-                ->orderByDesc('plate_count')
-                ->first();
-
-            // ── Winner: Most States Covered ────────────────────────────────────
-            // plates → series → regions join (plates have no direct region_id)
-            $statesWinner = DB::table('group_discoveries as gd')
-                ->join('plates',  'plates.id',  '=', 'gd.plate_id')
-                ->join('series',  'series.id',  '=', 'plates.series_id')
-                ->join('regions', 'regions.id', '=', 'series.region_id')
-                ->where('gd.group_id', $groupId)
-                ->whereBetween('gd.created_at', [$start, $end])
-                ->select('gd.user_id', DB::raw('COUNT(DISTINCT regions.id) as state_count'))
-                ->groupBy('gd.user_id')
-                ->orderByDesc('state_count')
-                ->first();
-
-            // ── Mark game completed ────────────────────────────────────────────
-            $game->update([
-                'status'                 => 'completed',
-                'winner_plates_user_id'  => $platesWinner?->user_id,
-                'winner_states_user_id'  => $statesWinner?->user_id,
-                'completed_at'           => now(),
-            ]);
-
-            // ── Award badges (firstOrCreate ensures idempotency) ───────────────
-            $platesBadge = Badge::where('slug', 'road_rally_most_plates')->first();
-            $statesBadge = Badge::where('slug', 'road_rally_most_states')->first();
-
-            if ($platesWinner && $platesBadge) {
-                UserBadge::firstOrCreate(
-                    ['user_id' => $platesWinner->user_id, 'badge_id' => $platesBadge->id],
-                    ['awarded_at' => now()]
-                );
-            }
-
-            if ($statesWinner && $statesBadge) {
-                UserBadge::firstOrCreate(
-                    ['user_id' => $statesWinner->user_id, 'badge_id' => $statesBadge->id],
-                    ['awarded_at' => now()]
-                );
-            }
+            // Delegate to model method — same logic used by the Artisan scheduler
+            // (@Audit GO 2026-10-27 — extracted to Game::finalizeRally())
+            $game->finalizeRally();
 
             return response()->json($game->load([
                 'winnerPlates:id,name',
@@ -278,7 +224,7 @@ class GameController extends Controller
     private function storeFiftyStates(int $groupId, Group $group, array $validated): JsonResponse
     {
         $country     = $validated['country'] ?? $group->country;
-        $targetCount = $country === 'CA' ? 13 : 50;
+        $targetCount = match($country) { 'CA' => 13, 'both' => 63, default => 50 };
 
         $game = Game::create([
             'group_id'     => $groupId,
