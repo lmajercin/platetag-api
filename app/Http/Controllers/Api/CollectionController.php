@@ -104,21 +104,38 @@ class CollectionController extends Controller
     }
 
     /**
-     * Return lightweight location data for all of the user's discoveries.
+     * Return lightweight location data for the user's discoveries.
      * GET /api/v1/auth/collection/locations
      *
+     * Optional filters: ?search=text  ?region_id=N
      * Only returns discoveries that have valid coordinates.
      * Designed for map rendering — no pagination, minimal payload.
      */
     public function locations(Request $request): JsonResponse
     {
+        $request->validate([
+            'search'    => ['nullable', 'string', 'max:100'],
+            'region_id' => ['nullable', 'integer'],
+        ]);
+
         $user = $request->user();
 
-        $items = DB::table('user_discovered_plates as udp')
+        $query = DB::table('user_discovered_plates as udp')
             ->join('plates', 'plates.id', '=', 'udp.plate_id')
+            ->join('series', 'series.id', '=', 'plates.series_id')
             ->where('udp.user_id', $user->id)
             ->whereNotNull('udp.latitude')
-            ->whereNotNull('udp.longitude')
+            ->whereNotNull('udp.longitude');
+
+        if ($request->filled('search')) {
+            $query->where('plates.name', 'like', '%' . $request->input('search') . '%');
+        }
+
+        if ($request->filled('region_id')) {
+            $query->where('series.region_id', $request->integer('region_id'));
+        }
+
+        $items = $query
             ->select(
                 'udp.id as discovery_id',
                 'udp.latitude',
