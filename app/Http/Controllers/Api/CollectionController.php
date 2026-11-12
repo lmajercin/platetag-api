@@ -254,39 +254,39 @@ class CollectionController extends Controller
             ->where('udp.user_id', $user->id);
         if ($sessionId !== null) $byRegionQ->where('udp.session_id', $sessionId);
 
+        // Pre-load total active plates per region — one clean query, no correlated subquery.
+        // Keyed by region_id for O(1) lookup when building the response map.
+        $regionTotals = DB::table('plates')
+            ->join('series', 'series.id', '=', 'plates.series_id')
+            ->where('plates.is_active', 1)
+            ->whereNotNull('series.region_id')
+            ->selectRaw('series.region_id, COUNT(*) as total_plates')
+            ->groupBy('series.region_id')
+            ->pluck('total_plates', 'region_id')
+            ->all();
+
         $byRegion = $byRegionQ
             ->select(
                 'regions.id as region_id',
                 'regions.name as region_name',
                 'series.country_code',
                 DB::raw('COUNT(*) as discovery_count'),
-                DB::raw('COUNT(DISTINCT udp.plate_id) as unique_plates'),
-                // Total active plates in this region (library size)
-                DB::raw('(SELECT COUNT(*) FROM plates p2
-                          JOIN series s2 ON s2.id = p2.series_id
-                          WHERE s2.region_id = regions.id AND p2.is_active = 1) AS total_plates')
+                DB::raw('COUNT(DISTINCT udp.plate_id) as unique_plates')
             )
             ->groupBy('regions.id', 'regions.name', 'series.country_code')
-            // Sort by completion percentage descending, then by plate count.
-            // Subquery is inlined here (not aliased) to guarantee ORDER BY resolves
-            // correctly on all MySQL configurations.
-            ->orderByRaw('
-                unique_plates / GREATEST(
-                    (SELECT COUNT(*) FROM plates p3
-                     JOIN series s3 ON s3.id = p3.series_id
-                     WHERE s3.region_id = regions.id AND p3.is_active = 1),
-                    1
-                ) DESC,
-                unique_plates DESC
-            ')
+            ->orderByDesc('unique_plates')
             ->get()
             ->map(fn($r) => [
                 'region_name'    => $r->region_name,
                 'country_code'   => $r->country_code,
                 'discovery_count'=> (int) $r->discovery_count,
                 'unique_plates'  => (int) $r->unique_plates,
-                'total_plates'   => (int) $r->total_plates,
-            ]);
+                'total_plates'   => (int) ($regionTotals[$r->region_id] ?? 0),
+            ])
+            // Sort by completion % desc, then by unique plates desc — done in PHP to avoid
+            // correlated-subquery ORDER BY which fails on some production MySQL configurations.
+            ->sortByDesc(fn($r) => $r['unique_plates'] / max($r['total_plates'], 1))
+            ->values();
 
         // ── Per-country summary ───────────────────────────────────────────────
         $byCountryQ = DB::table('user_discovered_plates as udp')
