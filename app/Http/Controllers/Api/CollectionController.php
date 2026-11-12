@@ -116,6 +116,7 @@ class CollectionController extends Controller
         $request->validate([
             'search'    => ['nullable', 'string', 'max:100'],
             'region_id' => ['nullable', 'integer'],
+            'date'      => ['nullable', 'date_format:Y-m-d'],
         ]);
 
         $user = $request->user();
@@ -135,6 +136,10 @@ class CollectionController extends Controller
             $query->where('series.region_id', $request->integer('region_id'));
         }
 
+        if ($request->filled('date')) {
+            $query->whereDate('udp.discovered_at', $request->input('date'));
+        }
+
         $items = $query
             ->select(
                 'udp.id as discovery_id',
@@ -146,7 +151,7 @@ class CollectionController extends Controller
                 'plates.name as plate_name',
                 'plates.image_filename',
             )
-            ->orderByDesc('udp.discovered_at')
+            ->orderBy('udp.discovered_at') // ASC for route mode; callers may re-sort for scatter
             ->get()
             ->map(function ($item) use ($request) {
                 $item->image_url = $this->publicStorageUrl($request, 'plates', $item->image_filename);
@@ -156,6 +161,27 @@ class CollectionController extends Controller
             ->values();
 
         return response()->json(['data' => $items]);
+    }
+
+    /**
+     * Return distinct calendar dates (YYYY-MM-DD) on which the authenticated user
+     * made at least one pinned discovery.  Used to populate the Route date strip.
+     * GET /api/v1/auth/collection/route-dates
+     */
+    public function routeDates(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $dates = DB::table('user_discovered_plates')
+            ->where('user_id', $user->id)
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->selectRaw('DATE(discovered_at) as discovery_date')
+            ->groupBy('discovery_date')
+            ->orderByDesc('discovery_date')
+            ->pluck('discovery_date');
+
+        return response()->json(['data' => $dates]);
     }
 
     /**

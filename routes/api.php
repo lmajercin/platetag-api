@@ -122,6 +122,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('auth/me',             [AuthController::class, 'updateMe']);
         Route::get('auth/collection',                     [CollectionController::class, 'index']);
         Route::get('auth/collection/locations',            [CollectionController::class, 'locations']);
+        Route::get('auth/collection/route-dates',          [CollectionController::class, 'routeDates']);
         Route::get('auth/stats',                          [CollectionController::class, 'stats']);
         Route::get('auth/badges',                         [CollectionController::class, 'badges']);
         Route::patch('auth/collection/{id}/notes',        [CollectionController::class, 'updateNotes']);
