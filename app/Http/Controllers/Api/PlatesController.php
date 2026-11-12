@@ -129,6 +129,24 @@ class PlatesController extends Controller
         ]);
     }
 
+    // ── Rarity thresholds (tune here — no deploy needed for value changes) ──────
+    // Collector count = distinct users who have discovered the plate at least once.
+    private const RARITY_ULTRA_RARE_MIN = 1;   // 1–4 collectors
+    private const RARITY_RARE_MIN       = 5;   // 5–19 collectors
+    private const RARITY_COMMON_MIN     = 20;  // 20+ collectors
+
+    /**
+     * Compute rarity tier string from a distinct-collector count.
+     * Returns: 'undiscovered' | 'ultra_rare' | 'rare' | 'common'
+     */
+    private function rarityTier(int $collectorCount): string
+    {
+        if ($collectorCount === 0)                         return 'undiscovered';
+        if ($collectorCount < self::RARITY_RARE_MIN)       return 'ultra_rare';
+        if ($collectorCount < self::RARITY_COMMON_MIN)     return 'rare';
+        return 'common';
+    }
+
     /**
      * Return single plate detail.
      * GET /api/v1/plates/{id}
@@ -146,7 +164,37 @@ class PlatesController extends Controller
             $plate->series->image_url = $this->publicStorageUrl($request, 'series', $plate->series->image_filename);
         }
 
+        $collectorCount = (int) DB::table('user_discovered_plates')
+            ->where('plate_id', $id)
+            ->distinct('user_id')
+            ->count('user_id');
+
+        $plate->collector_count = $collectorCount;
+        $plate->rarity_tier     = $this->rarityTier($collectorCount);
+
         return response()->json($plate->makeHidden(['ai_detail', 'ai_tags', 'ai_reviewed']));
+    }
+
+    /**
+     * Return lightweight rarity info for a plate.
+     * GET /api/v1/plates/{id}/rarity
+     * Public (no auth required). Used by mobile PlateDetailScreen on mount.
+     */
+    public function rarity(int $id): JsonResponse
+    {
+        // Verify plate exists and is active
+        $plate = Plate::where('is_active', true)->findOrFail($id);
+
+        $collectorCount = (int) DB::table('user_discovered_plates')
+            ->where('plate_id', $plate->id)
+            ->distinct('user_id')
+            ->count('user_id');
+
+        return response()->json([
+            'plate_id'       => $plate->id,
+            'collector_count'=> $collectorCount,
+            'rarity_tier'    => $this->rarityTier($collectorCount),
+        ]);
     }
 
     /**

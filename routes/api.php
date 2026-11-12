@@ -81,6 +81,7 @@ Route::prefix('v1')->group(function () {
         Route::get('plates',               [PlatesController::class, 'index']);
         Route::get('plates/global-stats',  [BrowseController::class, 'globalStats']);  // must precede plates/{id}
         Route::get('plates/recent',        [BrowseController::class, 'recentPlates']); // must precede plates/{id}
+        Route::get('plates/{id}/rarity',   [PlatesController::class, 'rarity']);       // must precede plates/{id}
         Route::get('plates/{id}',          [PlatesController::class, 'show']);
         Route::get('regions',              [BrowseController::class, 'regions']);
         Route::get('series',               [BrowseController::class, 'series']);
