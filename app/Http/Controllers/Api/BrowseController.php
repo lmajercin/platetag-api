@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Plate;
 use App\Models\Region;
 use App\Models\Series;
 use Illuminate\Http\JsonResponse;
@@ -174,10 +175,15 @@ class BrowseController extends Controller
             $discoverers = DB::table('user_discovered_plates')
                 ->distinct('user_id')
                 ->count('user_id');
+            $newPlates = DB::table('plates')
+                ->where('is_active', true)
+                ->where('created_at', '>=', now()->subDays(90))
+                ->count();
             return [
                 'total_discoveries'  => (int) $total,
                 'today_discoveries'  => (int) $today,
                 'total_discoverers'  => (int) $discoverers,
+                'new_plates_count'   => (int) $newPlates,
             ];
         });
 
@@ -192,5 +198,32 @@ class BrowseController extends Controller
     {
         $categories = Category::select('id', 'name')->where('is_active', true)->orderBy('name')->get();
         return response()->json($categories);
+    }
+
+    /**
+     * Plates added in the last N days (default 90).
+     * GET /api/v1/plates/recent?days=90
+     * Public endpoint (no auth required), cached 10 min.
+     */
+    public function recentPlates(Request $request): JsonResponse
+    {
+        $request->validate([
+            'days' => ['nullable', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        $days = (int) $request->query('days', 90);
+        $cacheKey = "recent_plates_{$days}";
+
+        $plates = \Illuminate\Support\Facades\Cache::remember($cacheKey, 600, function () use ($days) {
+            return Plate::with(['series.region:id,name,code,country_code', 'category:id,name'])
+                ->where('is_active', true)
+                ->where('created_at', '>=', now()->subDays($days))
+                ->orderBy('created_at', 'desc')
+                ->get(['id', 'name', 'slug', 'series_id', 'category_id',
+                       'vehicle_class', 'header_override', 'footer_override',
+                       'detail', 'serial_format', 'image_filename', 'created_at']);
+        });
+
+        return response()->json($plates);
     }
 }

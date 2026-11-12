@@ -79,7 +79,8 @@ Route::prefix('v1')->group(function () {
     // Public browse — general rate limit (60/min per IP)
     Route::middleware('throttle:api')->group(function () {
         Route::get('plates',               [PlatesController::class, 'index']);
-        Route::get('plates/global-stats',  [BrowseController::class, 'globalStats']); // must precede plates/{id}
+        Route::get('plates/global-stats',  [BrowseController::class, 'globalStats']);  // must precede plates/{id}
+        Route::get('plates/recent',        [BrowseController::class, 'recentPlates']); // must precede plates/{id}
         Route::get('plates/{id}',          [PlatesController::class, 'show']);
         Route::get('regions',              [BrowseController::class, 'regions']);
         Route::get('series',               [BrowseController::class, 'series']);
