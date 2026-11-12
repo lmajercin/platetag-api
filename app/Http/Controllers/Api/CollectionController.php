@@ -274,8 +274,7 @@ class CollectionController extends Controller
                 DB::raw('COUNT(DISTINCT udp.plate_id) as unique_plates')
             )
             ->groupBy('regions.id', 'regions.name', 'series.country_code')
-            ->orderByDesc('unique_plates')
-            ->get()
+            ->get()  // no ORDER BY — aggregate aliases can't be referenced in ORDER BY on this MySQL version; sort is done in PHP below
             ->map(fn($r) => [
                 'region_name'    => $r->region_name,
                 'country_code'   => $r->country_code,
