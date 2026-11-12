@@ -13,14 +13,15 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 - `plates_react` is a retired legacy project. **OFF LIMITS.** Do not read from, write to, or reference it.
 - `plates_react/tools/prod_sync.py` — **BANNED.** Wiped production database on May 9, 2026.
 
-## Current State (as of 2026-10-12)
+## Current State (as of 2026-11-11)
 
-- Production DB: plates=10,381 | series=261 | regions=100 | categories=17
-- Last content sync: 2026-10-12 (ID 10898 IN - Electronic Plate added)
+- Production DB: plates=10,402 | series=261 | regions=100 | categories=17
+- Last content sync: 2026-11-05 (ID 10919 IN - Municipal - Blue)
 - **Vision tagging backfill:** ✅ **CONCLUDED 2026-07-22**
-- Mobile app: **Build 87a LIVE both stores** — iOS/Android v1.6.0 (87). Android Published 2026-10-10, iOS Ready for Distribution 2026-10-12. Smoke tested on device — PASS.
-- **Groups API:** ✅ **LIVE on production** (deployed 2026-10-12). Tables: `groups`, `group_members`, `group_discoveries`, `games` — all 4 migrations ran on Hosting.com server. Controllers: `GroupController`, `GroupInviteController`, `GroupLeaderboardController`, `GameController`. Multi-group attribution added to `PlatesController::discover()`.
-- **GroupLeaderboardController bug fixed 2026-10-12:** `plates.region_id` does not exist — correct join is `plates → series → regions` (via `series.region_id`). Fixed in both `stateMap()` and `index()` methods. Deployed to production same session.
+- Mobile app: **Build 91 LIVE both stores** — iOS/Android v1.9.0 (91). Android published 2026-10-30 (Play Submission 27). iOS approved + live 2026-11-01. **Next build: 92.**
+- **Groups API:** ✅ **LIVE on production** (deployed 2026-10-12 + Build 91 additions). All migrations current through Build 91: `groups`, `group_members`, `group_discoveries`, `games`, `user_devices`, widen-country-columns.
+- **Build 91 backend additions (deployed 2026-10-27):** `user_devices` table, `POST /auth/devices` endpoint, `FinalizeRallies` Artisan command (`rallies:finalize`, scheduled midnight), B-31 rally plate count window fix in `GroupLeaderboardController`, US+CA BOTH mode (63-region support), `Game::finalizeRally()` extracted method.
+- **APNs push key:** ⚠️ Not yet added — iOS Road Rally push notifications non-functional until `eas credentials --platform ios` run interactively in Cursor Terminal.
 - **Filament Analytics:** ✅ **LIVE on production** 2026-08-21 — Discovery Insights, Discovery Map, Usage Reports; `geo_usage_snapshots` migrated + 147-day backfill; schedule `analytics:snapshot-geo` 02:15.
 - **Backuply:** ✅ Automated Google Drive backups restored 2026-07-14.
 - **Web app:** ✅ V1 LIVE at https://platetag.app. Full session (W-1+W-2+W-3) of web updates deployed 2026-09-07: Road Trips rename, OSM tiles, Summer theme (default), full-page map, global counter, share buttons on Road Trips + Collection, web claim flow on both share pages. See `platetag-web/docs/WEB_STATUS.md` for full detail.
