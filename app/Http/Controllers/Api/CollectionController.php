@@ -267,8 +267,18 @@ class CollectionController extends Controller
                           WHERE s2.region_id = regions.id AND p2.is_active = 1) AS total_plates')
             )
             ->groupBy('regions.id', 'regions.name', 'series.country_code')
-            // Sort by completion percentage descending, then by plate count
-            ->orderByRaw('unique_plates / GREATEST(total_plates, 1) DESC, unique_plates DESC')
+            // Sort by completion percentage descending, then by plate count.
+            // Subquery is inlined here (not aliased) to guarantee ORDER BY resolves
+            // correctly on all MySQL configurations.
+            ->orderByRaw('
+                unique_plates / GREATEST(
+                    (SELECT COUNT(*) FROM plates p3
+                     JOIN series s3 ON s3.id = p3.series_id
+                     WHERE s3.region_id = regions.id AND p3.is_active = 1),
+                    1
+                ) DESC,
+                unique_plates DESC
+            ')
             ->get()
             ->map(fn($r) => [
                 'region_name'    => $r->region_name,
