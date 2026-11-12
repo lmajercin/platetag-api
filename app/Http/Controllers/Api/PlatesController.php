@@ -287,7 +287,13 @@ class PlatesController extends Controller
 
         // Badge check runs outside the transaction (read-heavy, non-critical for atomicity).
         $badgeService = new BadgeService();
-        $newBadges    = $badgeService->checkAfterDiscovery($user, $plate);
+        $newBadges    = $badgeService->checkAfterDiscovery(
+            $user,
+            $plate,
+            true,
+            $request->filled('latitude')  ? (float) $request->input('latitude')  : null,
+            $request->filled('longitude') ? (float) $request->input('longitude') : null,
+        );
         $badgesEarned = $newBadges->map(fn($b) => [
             'id'   => $b->id,
             'name' => $b->name,

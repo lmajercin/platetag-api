@@ -22,7 +22,7 @@ class BadgeService
      * beta scale. Flag for queued dispatch (CheckBadgeAwards job) before public launch
      * if latency becomes a concern on A2 Hosting shared hosting.
      */
-    public function checkAfterDiscovery(User $user, Plate $plate, bool $isFirstDiscovery = true): Collection
+    public function checkAfterDiscovery(User $user, Plate $plate, bool $isFirstDiscovery = true, ?float $discoveryLat = null, ?float $discoveryLng = null): Collection
     {
         $newlyAwarded = collect();
 
@@ -33,6 +33,12 @@ class BadgeService
 
             if ($plate->is_alpca_winner) {
                 $newlyAwarded = $newlyAwarded->merge($this->checkAlpcaMilestoneBadges($user));
+            }
+
+            if ($discoveryLat !== null && $discoveryLng !== null) {
+                $newlyAwarded = $newlyAwarded->merge(
+                    $this->checkDistanceBadges($user, $plate, $discoveryLat, $discoveryLng)
+                );
             }
         }
 
@@ -271,6 +277,68 @@ class BadgeService
         }
 
         return $this->awardBadges($user->id, $eligibleIds);
+    }
+
+    // ── Distance badges ───────────────────────────────────────────────────────
+
+    /**
+     * Award distance badges when a plate is discovered far from its region's capital.
+     * Distance is calculated using the Haversine formula (result in miles).
+     * Only runs when the discovery has a GPS location.
+     */
+    private function checkDistanceBadges(User $user, Plate $plate, float $discoveryLat, float $discoveryLng): Collection
+    {
+        // Resolve the region's capital coordinates via plate → series → region.
+        $region = DB::table('series')
+            ->join('regions', 'regions.id', '=', 'series.region_id')
+            ->where('series.id', $plate->series_id)
+            ->whereNotNull('regions.capital_lat')
+            ->whereNotNull('regions.capital_lng')
+            ->select('regions.capital_lat', 'regions.capital_lng')
+            ->first();
+
+        if (!$region) {
+            return collect(); // Plate's region has no capital coordinates — skip
+        }
+
+        $distanceMiles = $this->haversinemiles(
+            (float) $region->capital_lat,
+            (float) $region->capital_lng,
+            $discoveryLat,
+            $discoveryLng
+        );
+
+        // Find active distance badges whose threshold the user has now met and hasn't earned.
+        $eligibleIds = DB::table('badges')
+            ->where('type', 'distance')
+            ->where('is_active', true)
+            ->where('threshold', '<=', $distanceMiles)
+            ->whereNotIn('id', function ($q) use ($user) {
+                $q->select('badge_id')
+                  ->from('user_badges')
+                  ->where('user_id', $user->id);
+            })
+            ->pluck('id')
+            ->all();
+
+        if (empty($eligibleIds)) {
+            return collect();
+        }
+
+        return $this->awardBadges($user->id, $eligibleIds);
+    }
+
+    /**
+     * Haversine distance formula — returns distance in miles between two lat/lng pairs.
+     */
+    private function haversinemiles(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadiusMiles = 3958.8;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2
+           + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        return $earthRadiusMiles * 2 * asin(sqrt($a));
     }
 
     // ── Award helper ─────────────────────────────────────────────────────────
