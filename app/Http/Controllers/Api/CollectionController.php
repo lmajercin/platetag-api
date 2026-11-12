@@ -151,7 +151,11 @@ class CollectionController extends Controller
                 'plates.name as plate_name',
                 'plates.image_filename',
             )
-            ->orderBy('udp.discovered_at') // ASC for route mode; callers may re-sort for scatter
+            ->when(
+                $request->filled('date'),
+                fn ($q) => $q->orderBy('udp.discovered_at', 'asc'),    // route mode — chronological
+                fn ($q) => $q->orderByDesc('udp.discovered_at'),        // scatter mode — newest first (original contract)
+            )
             ->get()
             ->map(function ($item) use ($request) {
                 $item->image_url = $this->publicStorageUrl($request, 'plates', $item->image_filename);
