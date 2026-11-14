@@ -29,7 +29,7 @@ class PurchaseController extends Controller
      */
     public function verify(Request $request): JsonResponse
     {
-        Log::error('IAP_DEBUG purchase verify: request received', [
+        Log::debug('IAP purchase verify: request received', [
             'user_id'    => $request->user()?->id,
             'ip'         => $request->ip(),
             'body_keys'  => array_keys($request->all()),
@@ -87,7 +87,7 @@ class PurchaseController extends Controller
                         'is_premium'         => true,
                         'premium_granted_at' => now(),
                     ])->save();
-                    Log::error('Purchase idempotent: is_premium was missing, repaired', [
+                    Log::warning('Purchase idempotent: is_premium was missing, repaired', [
                         'user_id'        => $user->id,
                         'transaction_id' => $data['transaction_id'],
                     ]);
@@ -115,10 +115,26 @@ class PurchaseController extends Controller
         $validation = $this->validateWithRevenueCat($user->id);
 
         if (! $validation['valid']) {
-            Log::error('IAP_DEBUG RevenueCat validation failed', [
+            $reason = $validation['reason'] ?? 'unknown';
+
+            // Propagation timeout: RC returned HTTP 200 on every attempt but no entitlement was visible.
+            // This should not happen in production — the RevenueCat SDK confirms the entitlement
+            // client-side before this endpoint is called. Tell the user to tap "Restore purchase"
+            // which will re-sync with RC and re-call this endpoint.
+            if ($reason === 'propagation_timeout') {
+                Log::warning('IAP propagation timeout: RC returned 200 but empty entitlements after all retries', [
+                    'user_id'  => $user->id,
+                    'platform' => $data['platform'],
+                ]);
+                return response()->json([
+                    'message' => 'Your purchase is still being processed by the payment system. Please tap "Restore purchase" in a moment to complete the unlock.',
+                ], 503);
+            }
+
+            Log::warning('IAP RevenueCat validation failed', [
                 'user_id'  => $user->id,
                 'platform' => $data['platform'],
-                'reason'   => $validation['reason'] ?? 'unknown',
+                'reason'   => $reason,
             ]);
             return response()->json([
                 'message' => 'Purchase could not be verified. Please try again or contact support.',
@@ -178,19 +194,17 @@ class PurchaseController extends Controller
      * V2 key (sk_...) is incompatible with the V1 /v1/subscribers/ endpoint — use V2 only.
      * The RevenueCat SDK syncs the transaction before this is called; no raw receipt needed.
      *
-     * Strategy: 3 quick RC polls (2s, 4s gaps = ~6s window) to catch fast production responses.
-     * If RC returns HTTP 200 but empty entitlement after all retries, we grant premium anyway
-     * and log it as a propagation-delayed grant. This handles Apple sandbox's known slow
-     * propagation without making the user wait 30-60+ seconds.
+     * Strategy: 3 quick RC polls (2s, 4s gaps = ~6s window) to catch production responses.
+     * If RC returns HTTP 200 but empty entitlement after all retries, we return
+     * ['valid' => false, 'reason' => 'propagation_timeout'] — NEVER grant premium.
      *
-     * Security rationale for propagation-delayed grant:
-     * - Request requires a valid Sanctum token (authenticated user)
-     * - product_id is whitelisted server-side (cannot be spoofed)
-     * - transaction_id has a unique constraint (cannot be reused across accounts)
-     * - RC returning HTTP 200 confirms our API key and project ID are valid
-     * - RC returning empty items = propagation lag, not an invalid purchase
+     * Security note: The RevenueCat SDK confirms the entitlement client-side (PaywallModal
+     * line 86) before this endpoint is ever called by the app. If this endpoint sees empty
+     * entitlements after all retries, it means either RC is genuinely unavailable or the
+     * request did not originate from a legitimate purchase flow. Reject and direct the user
+     * to tap "Restore purchase", which forces a fresh RC sync.
      *
-     * Hard failures (RC non-2xx) still reject immediately.
+     * Hard failures (RC non-2xx) reject immediately.
      */
     private function validateWithRevenueCat(int $userId): array
     {
@@ -210,17 +224,14 @@ class PurchaseController extends Controller
 
         $url = "https://api.revenuecat.com/v2/projects/{$projectId}/customers/{$userId}/active_entitlements";
 
-        Log::error('IAP_DEBUG RevenueCat lookup starting', [
+        Log::debug('IAP RevenueCat lookup starting', [
             'user_id'        => $userId,
-            'url'            => $url,
             'entitlement_id' => $entitlementId,
-            'has_secret_key' => !empty($secretKey),
-            'has_project_id' => !empty($projectId),
         ]);
 
         // 3 attempts: immediate, +2s, +4s = ~6 seconds total.
         // Fast enough for production RC; gives sandbox a reasonable window.
-        // If all return HTTP 200 with empty items → propagation-delayed grant (see below).
+        // If all return HTTP 200 with empty items → propagation_timeout (reject, see below).
         $retryDelays = [2, 4]; // 2 gaps → 3 total attempts
         $maxAttempts = count($retryDelays) + 1;
         $lastHttpStatus = null;
@@ -232,11 +243,10 @@ class PurchaseController extends Controller
             ])->get($url);
 
             if (! $response->successful()) {
-                Log::error('RevenueCat V2 active_entitlements API error', [
+                Log::warning('RevenueCat V2 active_entitlements API error', [
                     'user_id' => $userId,
                     'attempt' => $attempt,
                     'status'  => $response->status(),
-                    'body'    => $response->body(),
                 ]);
                 // Hard API error (auth failure, wrong project, etc.) — reject immediately.
                 return [
@@ -254,12 +264,10 @@ class PurchaseController extends Controller
             // premium grant if RC ever adds system-level entitlements to the items array.
             $items = array_values(array_filter($items, fn($item) => ($item['entitlement_id'] ?? '') === $entitlementId));
 
-            Log::error('IAP_DEBUG RevenueCat response', [
+            Log::debug('IAP RevenueCat response', [
                 'user_id'     => $userId,
                 'attempt'     => $attempt,
-                'status'      => $response->status(),
                 'items_count' => count($items),
-                'raw_items'   => $items,
             ]);
 
             if (! empty($items)) {
@@ -280,7 +288,7 @@ class PurchaseController extends Controller
             // Entitlement not visible yet — wait before retrying (except on the last attempt).
             if ($attempt < $maxAttempts) {
                 $delay = $retryDelays[$attempt - 1];
-                Log::error('IAP_DEBUG RC entitlement not propagated yet, retrying', [
+                Log::debug('IAP RC entitlement not propagated yet, retrying', [
                     'user_id'      => $userId,
                     'attempt'      => $attempt,
                     'delay_next_s' => $delay,
@@ -289,17 +297,12 @@ class PurchaseController extends Controller
             }
         }
 
-        // RC returned HTTP 200 on every attempt but no entitlement was visible.
-        // This is a known Apple sandbox propagation delay — the purchase IS registered
-        // (RC 200 confirms API connectivity and valid customer), just not yet replicated
-        // to the read endpoint. Grant premium and flag for audit.
-        // Hard errors (non-2xx) already returned above and never reach this point.
-        Log::error('IAP_PROPAGATION_GRANT: granting premium despite RC propagation lag', [
-            'user_id'          => $userId,
-            'attempts'         => $maxAttempts,
-            'last_http_status' => $lastHttpStatus,
-            'entitlement_id'   => $entitlementId,
-        ]);
-        return ['valid' => true, 'propagation_delayed' => true];
+        // RC returned HTTP 200 on every attempt but no entitlement was visible after
+        // the full retry window. Do NOT grant premium.
+        // The RevenueCat SDK confirms the entitlement client-side before this endpoint
+        // is called by the app — if the server still sees nothing after 6 seconds, the
+        // request either did not originate from a real purchase or RC is genuinely slow.
+        // Instruct the user to tap "Restore purchase" which forces a fresh RC sync.
+        return ['valid' => false, 'reason' => 'propagation_timeout'];
     }
 }
