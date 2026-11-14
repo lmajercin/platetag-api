@@ -15,8 +15,8 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 
 ## Current State (as of 2026-11-11)
 
-- Production DB: plates=10,402 | series=261 | regions=100 | categories=17
-- Last content sync: 2026-11-05 (ID 10919 IN - Municipal - Blue)
+- Production DB: plates=10,408 | series=261 | regions=100 | categories=17
+- Last content sync: 2026-11-13 (IDs 10920–10925: IN - XPO Trailer, IN - Sysco Trailer, IN - PAM Trailer, MO - Standard Issue - Handicapped - 2018, AR - Permanant Trailer, MO - Permanent Trailer)
 - **Vision tagging backfill:** ✅ **CONCLUDED 2026-07-22**
 - Mobile app: **Build 92 (v1.10.0) SUBMITTED BOTH STORES 2026-11-13 — awaiting review.** Build 91 (v1.9.0) remains live until approved. iOS EAS build `6e551935`, Android `1c2f473e`. Note: version bumped 1.9.0 → 1.10.0 (Apple requires version progression past live release; Google Play required targetSdkVersion 36).
 - **Groups API:** ✅ **LIVE on production** (deployed 2026-10-12 + Build 91 additions). All migrations current through Build 91: `groups`, `group_members`, `group_discoveries`, `games`, `user_devices`, widen-country-columns.
