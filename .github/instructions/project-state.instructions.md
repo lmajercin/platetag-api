@@ -15,8 +15,8 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 
 ## Current State (as of 2026-11-11)
 
-- Production DB: plates=10,408 | series=261 | regions=100 | categories=17
-- Last content sync: 2026-11-13 (IDs 10920–10925: IN - XPO Trailer, IN - Sysco Trailer, IN - PAM Trailer, MO - Standard Issue - Handicapped - 2018, AR - Permanant Trailer, MO - Permanent Trailer)
+- Production DB: plates=10,414 | series=261 | regions=100 | categories=18
+- Last content sync: 2026-11-17 (IDs 10926–10931: AR - Transporter (White), OK - Cherokee Nation - Veteran, OK - Osage Nation, OK - Otoe Missouria, OK - Ponca Nation, OK - Ponca Nation - Veteran; +1 new category)
 - **Vision tagging backfill:** ✅ **CONCLUDED 2026-07-22**
 - Mobile app: **Build 92 (v1.10.0) LIVE BOTH STORES.** 🤖 Android published 2026-11-13 (Play Submission 28). 🍏 iOS published 2026-11-14 12:22 PM. iOS EAS `6e551935`, Android `1c2f473e`.
 - **Groups API:** ✅ **LIVE on production** (deployed 2026-10-12 + Build 91 additions). All migrations current through Build 91: `groups`, `group_members`, `group_discoveries`, `games`, `user_devices`, widen-country-columns.
