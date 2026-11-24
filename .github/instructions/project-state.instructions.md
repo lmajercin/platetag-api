@@ -15,8 +15,8 @@ applyTo: "app/**/*.php, routes/**/*.php, database/**/*.php, config/**/*.php"
 
 ## Current State (as of 2026-11-11)
 
-- Production DB: plates=10,419 | series=261 | regions=100 | categories=18
-- Last content sync: 2026-11-19 (IDs 10932–10936: OK - Comanche Nation - Bison, Tipis, Warrior, Blackout, Lord of the Plains)
+- Production DB: plates=10,427 | series=261 | regions=100 | categories=18
+- Last content sync: 2026-11-23 (IDs 10937–10944: IN - Wrecker, OK - Handicapped, OK - School District, MS - Permanent, IN - FedEx Freight, IN - Schneider, IN - Swift, LA - Commercial)
 - **Vision tagging backfill:** ✅ **CONCLUDED 2026-07-22**
 - Mobile app: **Build 92 (v1.10.0) LIVE BOTH STORES.** 🤖 Android published 2026-11-13 (Play Submission 28). 🍏 iOS published 2026-11-14 12:22 PM. iOS EAS `6e551935`, Android `1c2f473e`.
 - **Groups API:** ✅ **LIVE on production** (deployed 2026-10-12 + Build 91 additions). All migrations current through Build 91: `groups`, `group_members`, `group_discoveries`, `games`, `user_devices`, widen-country-columns.
